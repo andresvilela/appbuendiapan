@@ -1,0 +1,2578 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>Buendía Pan — Sistema Comercial y Reparto</title>
+
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Buendía Pan" />
+  <meta name="theme-color" content="#E11D2E" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+
+  <style>
+    * {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background-color: #FFFBF7;
+      color: #1E1B18;
+      overscroll-behavior-y: none;
+    }
+    .safe-top { padding-top: max(env(safe-area-inset-top), 12px); }
+    .safe-bottom { padding-bottom: max(env(safe-area-inset-bottom), 10px); }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script>
+    window.addEventListener('error', function (e) {
+      var root = document.getElementById('root');
+      if (root && !root.innerHTML.trim()) {
+        root.innerHTML =
+          '<div style="padding:24px;font-family:sans-serif;color:#991b1b;background:#fef2f2;border:1px solid #fecaca;margin:16px;border-radius:16px;">' +
+          '<strong>Error de carga:</strong> ' + (e.message || 'Error desconocido') +
+          '</div>';
+      }
+    });
+  </script>
+
+  <script type="text/babel">
+    const { useState, useMemo, useEffect } = React;
+
+    // ============================================================================
+    // ICONOS SVG NATIVOS
+    // ============================================================================
+    const Icon = ({ name, className = "w-4 h-4" }) => {
+      const icons = {
+        truck: <><path d="M14 18V6a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2v11a1 1 0 0 0 1 1h2"/><path d="M15 18H9"/><path d="M19 18h2a1 1 0 0 0 1-1v-3.65a1 1 0 0 0-.22-.624l-3.48-4.35A1 1 0 0 0 17.52 8H14"/><circle cx="17" cy="18" r="2"/><circle cx="7" cy="18" r="2"/></>,
+        store: <><path d="m2 7 4.41-4.41A2 2 0 0 1 7.83 2h8.34a2 2 0 0 1 1.42.59L22 7"/><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><path d="M15 22v-4a2 2 0 0 0-2-2h-2a2 2 0 0 0-2 2v4"/><path d="M2 7h20"/></>,
+        package: <><path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></>,
+        receipt: <><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></>,
+        mapPin: <><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></>,
+        navigation: <><polygon points="3 11 22 2 13 21 11 13 3 11"/></>,
+        search: <><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></>,
+        check: <><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>,
+        x: <><path d="M18 6 6 18"/><path d="m6 6 12 12"/></>,
+        clock: <><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></>,
+        plus: <><path d="M5 12h14"/><path d="M12 5v14"/></>,
+        minus: <><path d="M5 12h14"/></>,
+        alert: <><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></>,
+        shield: <><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></>,
+        send: <><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></>,
+        target: <><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></>,
+        locate: <><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></>,
+        bell: <><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></>,
+        timer: <><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></>,
+        smartphone: <><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></>,
+        externalLink: <><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></>,
+        userPlus: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" x2="19" y1="8" y2="14"/><line x1="22" x2="16" y1="11" y2="11"/></>,
+        barChart: <><line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/><line x1="6" x2="6" y1="20" y2="16"/></>,
+        download: <><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y2="15" x2="12" y1="3"/></>,
+        lock: <><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></>,
+        logOut: <><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" x2="9" y1="12" y2="12"/></>,
+        users: <><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></>
+      };
+      return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+          {icons[name] || null}
+        </svg>
+      );
+    };
+
+    // ============================================================================
+    // DATOS MAESTROS: USUARIOS, CATÁLOGO, PLANIFICACIÓN Y PADRÓN POR RUTA
+    // ============================================================================
+    const USUARIOS_INICIALES = [
+      { id: 'usr-vend-a', usuario: 'vendedor.a', password: '123', nombreCompleto: 'Gabriel — Vendedor A (Camioneta 1)', rol: 'vendedor', etiquetaRol: 'Vendedor de Ruta', vendedorAsignado: 'A', area: 'Zona Norte / Centro', activo: true },
+      { id: 'usr-vend-b', usuario: 'vendedor.b', password: '123', nombreCompleto: 'Facundo — Vendedor B (Camioneta 2)', rol: 'vendedor', etiquetaRol: 'Vendedor de Ruta', vendedorAsignado: 'B', area: 'Zona Este', activo: true },
+      { id: 'usr-vend-c', usuario: 'vendedor.c', password: '123', nombreCompleto: 'Federico — Vendedor C (Camioneta 3)', rol: 'vendedor', etiquetaRol: 'Vendedor de Ruta', vendedorAsignado: 'C', area: 'Zona Sur', activo: true },
+      { id: 'usr-admin', usuario: 'admin.caja', password: '123', nombreCompleto: 'Administración y Caja', rol: 'administracion', etiquetaRol: 'Sector Administración', vendedorAsignado: null, area: 'Control de Caja y Boletas', activo: true },
+      { id: 'usr-jefe', usuario: 'jefe.ventas', password: '123', nombreCompleto: 'Jefe de Ventas', rol: 'jefe_ventas', etiquetaRol: 'Jefe de Ventas', vendedorAsignado: null, area: 'Supervisión Operativa de Rutas', activo: true },
+      { id: 'usr-gerencia', usuario: 'gerencia.ventas', password: '123', nombreCompleto: 'Gerencia de Ventas', rol: 'gerencia_ventas', etiquetaRol: 'Gerencia de Ventas', vendedorAsignado: null, area: 'Estrategia Comercial y BI', activo: true },
+      { id: 'usr-direccion', usuario: 'direccion', password: '123', nombreCompleto: 'Andrés — Dirección General', rol: 'direccion', etiquetaRol: 'Dirección de la Empresa', vendedorAsignado: null, area: 'Dirección Ejecutiva', activo: true }
+    ];
+
+    const CATALOGO_PRODUCTOS = [
+      { id: 'lactal_blanco', nombre: 'Lactal Blanco x 360gr', categoria: 'Panificados', garantiaDias: 14, precio: 1700, preventa48: false },
+      { id: 'lactal_salvado', nombre: 'Lactal Salvado x 360gr', categoria: 'Panificados', garantiaDias: 14, precio: 1700, preventa48: false },
+      { id: 'lactal_integral', nombre: 'Lactal Integral x 360gr', categoria: 'Panificados', garantiaDias: 14, precio: 1700, preventa48: false },
+      { id: 'lactal_multi_int', nombre: 'Lactal Multicereal Int. x 360gr', categoria: 'Panificados', garantiaDias: 14, precio: 3400, preventa48: false },
+      { id: 'lactal_multi_sal', nombre: 'Lactal Multicereal Sal. x 360gr', categoria: 'Panificados', garantiaDias: 14, precio: 3400, preventa48: false },
+      { id: 'viena', nombre: 'Viena x 6u', categoria: 'Panificados', garantiaDias: 10, precio: 1050, preventa48: false },
+      { id: 'hamburguesa', nombre: 'Hamburguesa x 4u', categoria: 'Panificados', garantiaDias: 10, precio: 1050, preventa48: false },
+      { id: 'doble_salvado', nombre: 'Doble Salvado x 6u', categoria: 'Panificados', garantiaDias: 10, precio: 1350, preventa48: false },
+      { id: 'pebete', nombre: 'Pebete x 6u', categoria: 'Panificados', garantiaDias: 10, precio: 1350, preventa48: false },
+      { id: 'brioche', nombre: 'Brioche x 4u', categoria: 'Panificados', garantiaDias: 10, precio: 1900, preventa48: false },
+      { id: 'pizzetas', nombre: 'Pizzetas x 10u', categoria: 'Panificados', garantiaDias: 10, precio: 950, preventa48: false },
+      { id: 'semolada_chia', nombre: 'Semolada Chía x 1kg', categoria: 'Panificados', garantiaDias: 10, precio: 5500, preventa48: false },
+      { id: 'chips', nombre: 'Chips x 48u (Pedido 48hs)', categoria: 'Panificados', garantiaDias: 10, precio: 4600, preventa48: true },
+      { id: 'pan_miga', nombre: 'Pan de Miga 10 fetas (48hs)', categoria: 'Panificados', garantiaDias: 10, precio: 3600, preventa48: true },
+      { id: 'mantecados', nombre: 'Mantecados x 12u', categoria: 'Dulces', garantiaDias: 10, precio: 5500, preventa48: false },
+      { id: 'maicenas', nombre: 'Maicenas x 12u', categoria: 'Dulces', garantiaDias: 10, precio: 6000, preventa48: false },
+      { id: 'palmeritas', nombre: 'Palmeritas x 1 kg', categoria: 'Dulces', garantiaDias: 10, precio: 5100, preventa48: false }
+    ];
+
+    const DIAS_SEMANA = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+    // Calcula para cada día hábil (Lunes a Sábado) su última ocurrencia real (hoy o el último pasado)
+    // Ejemplo: si hoy es Martes 17/11, Lunes=16/11, Martes=17/11 (HOY), Miércoles=11/11 (sem. ant.), etc.
+    const obtenerCalendarioUltimosDiasHabiles = (fechaBase = new Date()) => {
+      const mapaDow = { Lunes: 1, Martes: 2, Miércoles: 3, Jueves: 4, Viernes: 5, Sábado: 6 };
+      const dowHoy = fechaBase.getDay(); // 0=Dom, 1=Lun .. 6=Sab
+      const hoyIso = `${fechaBase.getFullYear()}-${String(fechaBase.getMonth() + 1).padStart(2, '0')}-${String(fechaBase.getDate()).padStart(2, '0')}`;
+
+      return DIAS_SEMANA.map((nombreDia) => {
+        const targetDow = mapaDow[nombreDia];
+        // Si hoy es Domingo (0), todos los días Lunes..Sábado fueron hace 6..1 días
+        let diffDias = dowHoy === 0 ? (7 - targetDow) : (dowHoy - targetDow);
+        if (diffDias < 0) diffDias += 7; // Si el día aún no llegó esta semana, apunta al de la semana pasada
+
+        const dObj = new Date(fechaBase.getFullYear(), fechaBase.getMonth(), fechaBase.getDate() - diffDias);
+        const iso = `${dObj.getFullYear()}-${String(dObj.getMonth() + 1).padStart(2, '0')}-${String(dObj.getDate()).padStart(2, '0')}`;
+        const dd = String(dObj.getDate()).padStart(2, '0');
+        const mm = String(dObj.getMonth() + 1).padStart(2, '0');
+        const yy = String(dObj.getFullYear()).slice(-2);
+        const yyyy = String(dObj.getFullYear());
+
+        return {
+          nombreDia,
+          iso,
+          corta: `${dd}/${mm}`,
+          completa: `${dd}/${mm}/${yy}`,
+          completaAnio: `${dd}/${mm}/${yyyy}`,
+          esHoy: iso === hoyIso,
+          esAyer: diffDias === 1,
+          esSemanaAnterior: diffDias >= 4 && dowHoy !== 0 && targetDow > dowHoy
+        };
+      });
+    };
+
+    const obtenerNombreDiaActual = (fechaBase = new Date()) => {
+      const nombres = ['Sábado', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+      return nombres[fechaBase.getDay()] || 'Sábado';
+    };
+
+    const formatARS = (monto) =>
+      new Intl.NumberFormat('es-AR', {
+        style: 'currency',
+        currency: 'ARS',
+        maximumFractionDigits: 0
+      }).format(monto || 0);
+
+    const LogoBuendiaPan = () => (
+      <div className="flex items-center gap-2.5">
+        <svg viewBox="0 0 64 64" className="w-10 h-10 shrink-0 rounded-2xl shadow-sm bg-[#FFFBF7] p-1">
+          <circle cx="32" cy="32" r="30" fill="#FDE68A" />
+          <path d="M16 44c4-8 28-8 32 0" fill="#E11D2E" />
+          <circle cx="32" cy="27" r="11" fill="#FDBA74" />
+          <path d="M21 24c2-8 20-8 22 0-4-3-18-3-22 0z" fill="#78350F" />
+          <circle cx="28" cy="26" r="1.5" fill="#1E1B18" />
+          <circle cx="36" cy="26" r="1.5" fill="#1E1B18" />
+          <path d="M29 31c2 2 4 2 6 0" stroke="#991B1B" strokeWidth="1.8" fill="none" strokeLinecap="round" />
+          <path d="M12 38l6-12M52 38l-6-12" stroke="#D97706" strokeWidth="2.5" strokeLinecap="round" />
+        </svg>
+        <div className="leading-tight">
+          <div className="text-sm font-black tracking-tight text-white">BUENDÍA PAN</div>
+          <div className="text-[10px] font-bold text-amber-300 uppercase tracking-wider">Tucumán • Reparto</div>
+        </div>
+      </div>
+    );
+
+    const NOMBRES_RUTAS = {
+      'R-1': 'San Pablo / Yerba Buena',
+      'R-2': 'Yerba Buena / San José',
+      'R-3': 'Lules / Reducción',
+      'R-4': 'Famaillá / Lules',
+      'R-5': 'Tafí Viejo / Villa Carmela',
+      'R-6': 'Lomas de Tafí / Talitas',
+      'R-7': 'San Miguel de Tucumán',
+      'R-8': 'Alderetes / La Banda / Lastenia',
+      'R-9': 'Barrio Sur / Barrio Norte',
+      'R-10': 'Monteros / Acheral',
+      'R-11': 'Nuevas Talitas'
+    };
+
+    const PLANIFICACION_VENDEDORES = {
+      A: {
+        id: 'A',
+        nombre: 'Gabriel (Vendedor A)',
+        zonaMacro: 'Zona Norte / Centro',
+        vehiculo: 'Camioneta 1',
+        agenda: {
+          Lunes: { rutaId: 'R-5', nombre: 'Tafí Viejo / Villa Carmela', objetivo: 1100000 },
+          Martes: { rutaId: 'R-6', nombre: 'Lomas de Tafí / Talitas', objetivo: 1100000 },
+          Miércoles: { rutaId: 'R-7', nombre: 'San Miguel de Tucumán', objetivo: 1000000, subRutaId: 'R-9', subNombre: 'Barrio Sur / Barrio Norte' },
+          Jueves: { rutaId: 'R-5', nombre: 'Tafí Viejo / Villa Carmela', objetivo: 1100000 },
+          Viernes: { rutaId: 'R-6', nombre: 'Lomas de Tafí / Talitas', objetivo: 1100000 },
+          Sábado: { rutaId: 'R-7', nombre: 'San Miguel de Tucumán', objetivo: 1000000, subRutaId: 'R-9', subNombre: 'Barrio Sur / Barrio Norte' }
+        }
+      },
+      B: {
+        id: 'B',
+        nombre: 'Facundo (Vendedor B)',
+        zonaMacro: 'Zona Este',
+        vehiculo: 'Camioneta 2',
+        agenda: {
+          Lunes: { rutaId: 'R-1', nombre: 'San Pablo / Yerba Buena', objetivo: 1100000 },
+          Martes: { rutaId: 'R-2', nombre: 'Yerba Buena / San José', objetivo: 1100000 },
+          Miércoles: { rutaId: 'R-8', nombre: 'Alderetes / La Banda / Lastenia', objetivo: 1300000 },
+          Jueves: { rutaId: 'R-1', nombre: 'San Pablo / Yerba Buena', objetivo: 1100000 },
+          Viernes: { rutaId: 'R-2', nombre: 'Yerba Buena / San José', objetivo: 1100000 },
+          Sábado: { rutaId: 'R-11', nombre: 'Nuevas Talitas', objetivo: 1100000 }
+        }
+      },
+      C: {
+        id: 'C',
+        nombre: 'Federico (Vendedor C)',
+        zonaMacro: 'Zona Sur',
+        vehiculo: 'Camioneta 3',
+        agenda: {
+          Lunes: { rutaId: null, nombre: 'Día Libre / Logística', objetivo: 0 },
+          Martes: { rutaId: 'R-3', nombre: 'Lules / Reducción', objetivo: 1300000 },
+          Miércoles: { rutaId: null, nombre: 'Día Libre / Logística', objetivo: 0 },
+          Jueves: { rutaId: 'R-10', nombre: 'Monteros / Acheral', objetivo: 1500000 },
+          Viernes: { rutaId: 'R-4', nombre: 'Famaillá / Lules', objetivo: 1400000 },
+          Sábado: { rutaId: null, nombre: 'Día Libre / Logística', objetivo: 0 }
+        }
+      }
+    };
+
+    const STOCK_INICIAL_BASE = {
+      lactal_blanco: 60,
+      lactal_salvado: 45,
+      lactal_integral: 30,
+      lactal_multi_int: 20,
+      lactal_multi_sal: 20,
+      viena: 80,
+      hamburguesa: 70,
+      doble_salvado: 40,
+      pebete: 50,
+      brioche: 25,
+      pizzetas: 45,
+      semolada_chia: 15,
+      chips: 0,
+      pan_miga: 0,
+      mantecados: 30,
+      maicenas: 30,
+      palmeritas: 25
+    };
+
+    const PADRON_BASE_RUTAS = {
+      'R-1': [
+        ['FULL MARKET (YERBA BUENA)', 'Con. de Sirga 1200', 'YERBA BUENA', '3815154414'],
+        ['DESPENSA FERNANDA (YERBA BUENA)', 'Los Tulipanes 1399', 'YERBA BUENA', '381290221'],
+        ['AL TOQUE (YERBA BUENA)', 'Gral. Jose de San Martin 1482', 'YERBA BUENA', '3814093423'],
+        ['DORY (YERBA BUENA)', 'Gral. Jose de San Martin 1200', 'YERBA BUENA', '3816854363'],
+        ['SISTOLA (YERBA BUENA)', 'Gral. Jose de San Martin 741', 'YERBA BUENA', '3815825838'],
+        ['LA AMISTAD (YERBA BUENA)', 'Av. Aconquija 2224', 'YERBA BUENA', '3814696688'],
+        ['QUE COMEMOS (SAN PABLO)', 'Obanta Barrio a 2 cuadras plaza', 'SAN PABLO', '3812086972'],
+        ['LA PRINCIPAL (SAN PABLO)', 'Av. Juan P Apostol y Av. San Martin', 'SAN PABLO', '3815047310']
+      ],
+      'R-2': [
+        ['EL ROJO (YERBA BUENA)', 'Lamadrid y Darwin', 'YERBA BUENA', '3814387994'],
+        ['PATIOS BOULEVARD (YERBA BUENA)', 'Boulevard 649', 'YERBA BUENA', '3816202820'],
+        ['HELEN 1 (YERBA BUENA)', 'Facundo Quiroga 495', 'YERBA BUENA', '3813308999'],
+        ['AUTOSERVICIO TORO (YERBA BUENA)', 'Avenida Peron 2697', 'YERBA BUENA', '3815414724'],
+        ['EL MERCATO (SAN JOSE)', 'C. 4 esq. Juan L. Fanzolato', 'SAN JOSE', '3814667768']
+      ],
+      'R-3': [
+        ['SAN RAMON (LULES)', 'C. M Moreno antes de C. Bolivia', 'LULES', ''],
+        ['LA ESQUINA (LULES)', 'RP321 esquina C. A Condarco', 'LULES', '3816306377'],
+        ['DISTRIBUIDORA SAN EXPEDITO (LULES)', 'C. J L Nouges 245', 'LULES', '3815444547'],
+        ['SUPER DISTRI IOR (LULES)', 'Eliseo Canton 298', 'LULES', '3812151044'],
+        ['LA ESQUINA DE LUCHO (REDUCCION)', 'Belgrano y Salta', 'REDUCCION', '3815038287']
+      ],
+      'R-4': [
+        ['LA ARBOLEDA (FAMAILLA)', 'Av. Alem 750', 'FAMAILLA', '3816323871'],
+        ['DRUGSTORE DOC (FAMAILLA)', 'Av. Sarmiento y Av. Alberdi', 'FAMAILLA', '3815764846'],
+        ['SUPER NINY (FAMAILLA)', 'Av. San Martin 165', 'FAMAILLA', '3816346666'],
+        ['LA ISABEL (FAMAILLA)', 'Av. Belgrano 324', 'FAMAILLA', '3813005787'],
+        ['SUPER MORENA 1 (FAMAILLA)', 'Av. Pedro Riera y Lavalle', 'FAMAILLA', '3815551247']
+      ],
+      'R-5': [
+        ['POLIRUBRO OLIVIA 1 (TAFI VIEJO)', 'Chacabuco 173', 'TAFI VIEJO', '3812070106'],
+        ['MINI MERCADO SILVA (TAFI VIEJO)', 'Laprida 789', 'TAFI VIEJO', '3815109007'],
+        ['SUPER CINY (TAFI VIEJO)', 'Cochabamba 340', 'TAFI VIEJO', '3816346666'],
+        ['EL TATA (TAFI VIEJO)', 'Reconquista 723', 'TAFI VIEJO', '1164991428'],
+        ['DESPENSA ACUARIO (TAFI VIEJO)', 'Entre Rios 1100', 'TAFI VIEJO', '3814671865'],
+        ['DYD (VILLA CARMELA)', 'Las Tipas 500', 'VILLA CARMELA', '3812027362'],
+        ['TODO SUELTO (VILLA CARMELA)', '2 Juan B. Teran esq. Los Sauces', 'VILLA CARMELA', '3814016675']
+      ],
+      'R-6': [
+        ['KITCHEN (LOMAS DE TAFI)', 'Natalio Mirkin 4103', 'LOMAS DE TAFI', '3815540284'],
+        ['FORTIN (LOMAS DE TAFI)', 'Natalio Mirkin esq. Camino del Peru', 'LOMAS DE TAFI', '3813415248'],
+        ['FIAMBRERIA LOMAS (LOMAS DE TAFI)', 'Av. Juan Manuel Raya 105', 'LOMAS DE TAFI', '3812000500'],
+        ['OPEN 24 HS (LOMAS DE TAFI)', 'Av. Juan Manuel Raya y Kirchner', 'LOMAS DE TAFI', '3816302016'],
+        ['DESPENSA DELIA (TALITAS)', 'Av. Francisco de Aguirre 2765', 'TALITAS', '3815532447']
+      ],
+      'R-7': [
+        ['DESPENSA FABIAN (SAN JOSE)', 'Juan L. Fanzolato esq. Ibatin', 'SAN JOSE', '3814351494'],
+        ['DESPENSA MARISA (CAPITAL)', 'Godoy Cruz 440', 'CAPITAL', '3813015514'],
+        ['LAS MARIAS (CAPITAL)', 'San Juan y Martin Rodriguez', 'CAPITAL', '3816366316'],
+        ['OPEN 24 HS (CAPITAL)', 'Don Bosco y Manuel Alberti', 'CAPITAL', '3816523454'],
+        ['ELENA MARKET LAMADRID (CAPITAL)', 'Lamadrid 1558', 'CAPITAL', '3815553187'],
+        ['MARKET.IO (CAPITAL)', 'Mitre 686', 'CAPITAL', '3816491250']
+      ],
+      'R-8': [
+        ['AUTOSERVICIO NEVILLE (BANDA)', 'Av. Alfredo Guzman y Alberdi', 'BANDA', '3814416066'],
+        ['TREBOL ALDERETES (BANDA)', 'Eva Peron 200', 'BANDA', '3812467160'],
+        ['DRUGSTORE URQUIZA (ALDERETES)', 'Avenida Urquiza 27', 'ALDERETES', '3813971209'],
+        ['EL NUEVO AMANECER 2 (ALDERETES)', 'Pcia de Cordoba y Lamadrid', 'ALDERETES', '3816554621'],
+        ['POLLERIA ITATI (LASTENIA)', 'Provincia de Mendoza 210', 'LASTENIA', '3815456557']
+      ],
+      'R-9': [
+        ['EL MOCHO 2 (BARRIO SUR)', 'General Paz y Las Heras', 'BARRIO SUR', ''],
+        ['ESQUINA MARKET BARRIO SUR', 'Lamadrid y Las Heras', 'BARRIO SUR', '3813971821'],
+        ['SUPER QUINO (BARRIO SUR)', 'Entre Rios y Bolivar', 'BARRIO SUR', '3816524534'],
+        ['MIS AMORES (BARRIO NORTE)', 'Av. Avellaneda y Santa Fe', 'BARRIO NORTE', '3813394359'],
+        ['SIRIA AUTOSERVICIO (BARRIO NORTE)', 'Avenida Siria 1353', 'BARRIO NORTE', '3815958082']
+      ],
+      'R-10': [
+        ['SUPER IDEAL (RIO SECO)', 'Julio Argentino Roca 100', 'RIO SECO', ''],
+        ['SUPER ROQUE (RIO SECO)', 'Av. Himno Patrio y Concepcion', 'RIO SECO', '3865711132'],
+        ['EL POR VENIR (MONTEROS)', 'Mariano Moreno 47', 'MONTEROS', '3863449678'],
+        ['AUTOSERVICIO SIRIA (MONTEROS)', 'Colon 164', 'MONTEROS', '3816342584'],
+        ['EL MERCADITO (ACHERAL)', 'San Martin y Belgrano', 'ACHERAL', '3863572953']
+      ],
+      'R-11': [
+        ['FULL CONGRESO (NUEVAS TALITAS)', 'C. 41 92 A Noroeste 24', 'TALITAS', '3814402048'],
+        ['SU ALMACEN (NUEVAS TALITAS)', 'Av. Camino del Perú 2155', 'TALITAS', '3816377282'],
+        ['PANADERIA EL TRIUNFO (NUEVAS TALITAS)', 'Calle 124 Barrio Experimental 2', 'TALITAS', '3816462745'],
+        ['MISTA PUNTO MARKET (NUEVAS TALITAS)', 'C. 41 90 Noroeste', 'TALITAS', '3816990415'],
+        ['EL SALVADOR (TALITAS)', 'José I. Warnes 441', 'TALITAS', '3816029101']
+      ]
+    };
+
+    const formatearHorarioTexto = (horario) => {
+      if (!horario) return '08:00 a 13:00 hs';
+      if (horario.tipo === '24hs') return 'Abierto 24 hs';
+      const t1 = `${horario.mananaIni || '08:00'} a ${horario.mananaFin || '13:00'} hs`;
+      if (horario.tipo === 'cortado' && horario.tardeIni && horario.tardeFin) {
+        return `${t1} / ${horario.tardeIni} a ${horario.tardeFin} hs`;
+      }
+      return t1;
+    };
+
+    const evaluarEstadoHorario = (horario, horaStr) => {
+      if (!horario || horario.tipo === '24hs') return { estado: 'abierto24', texto: '24 hs', minutosParaCerrar: 999 };
+      const [h, m] = (horaStr || '12:00').split(':').map(Number);
+      const minAct = h * 60 + m;
+      const toMin = (s) => {
+        if (!s || !s.includes(':')) return null;
+        const [hh, mm] = s.split(':').map(Number);
+        return hh * 60 + mm;
+      };
+      const m1Fin = toMin(horario.mananaFin);
+      const m1Ini = toMin(horario.mananaIni);
+      if (m1Ini !== null && m1Fin !== null && minAct >= m1Ini && minAct < m1Fin) {
+        const restan = m1Fin - minAct;
+        return restan <= 45
+          ? { estado: 'por_cerrar', texto: `Cierra en ${restan} min (${horario.mananaFin})`, minutosParaCerrar: restan }
+          : { estado: 'abierto', texto: `Hasta ${horario.mananaFin} hs`, minutosParaCerrar: restan };
+      }
+      return { estado: 'abierto', texto: formatearHorarioTexto(horario), minutosParaCerrar: 180 };
+    };
+
+    const calcularClasificacionCliente = (cliente) => {
+      if (cliente.esOtrasVentas) {
+        return { codigo: 'VAR', etiqueta: 'Otras Ventas / Mostrador', promedioVisita: 0, badgeClass: 'bg-stone-100 text-stone-700 border-stone-300' };
+      }
+      const ops = [...(cliente.historialPrevio || [])];
+      if (cliente.estado === 'Visitado' && cliente.ultimaOperacion) ops.push(cliente.ultimaOperacion);
+      const prom = ops.length > 0 ? Math.round(ops.reduce((acc, o) => acc + (o.totalVenta || 0), 0) / ops.length) : 0;
+      if (prom > 200000) return { codigo: 'A+', etiqueta: 'Tipo A+ (> $200k)', promedioVisita: prom, badgeClass: 'bg-purple-100 text-purple-900 border-purple-300' };
+      if (prom > 100000) return { codigo: 'A', etiqueta: 'Tipo A ($100k-$200k)', promedioVisita: prom, badgeClass: 'bg-emerald-100 text-emerald-900 border-emerald-300' };
+      if (prom > 50000) return { codigo: 'B', etiqueta: 'Tipo B ($50k-$100k)', promedioVisita: prom, badgeClass: 'bg-blue-100 text-blue-900 border-blue-300' };
+      if (prom > 20000) return { codigo: 'C', etiqueta: 'Tipo C ($20k-$50k)', promedioVisita: prom, badgeClass: 'bg-amber-100 text-amber-900 border-amber-300' };
+      if (prom >= 10000) return { codigo: 'D', etiqueta: 'Tipo D ($10k-$20k)', promedioVisita: prom, badgeClass: 'bg-orange-100 text-orange-900 border-orange-300' };
+      return { codigo: 'E', etiqueta: 'Tipo E (< $10k)', promedioVisita: prom, badgeClass: 'bg-stone-100 text-stone-700 border-stone-300' };
+    };
+
+    const crearEstadoInicialRutas = () => {
+      const out = {};
+
+      Object.entries(PADRON_BASE_RUTAS).forEach(([rutaId, lista]) => {
+        const clientes = lista.map((item, idx) => {
+          const [nombre, direccion, localidad, telefono] = item;
+          return {
+            id: `${rutaId}-C-${String(idx + 1).padStart(3, '0')}`,
+            orden: idx + 1,
+            nombre,
+            contacto: '',
+            direccion,
+            localidad,
+            telefono,
+            lat: null,
+            lng: null,
+            horario: { tipo: 'cortado', mananaIni: '08:00', mananaFin: '13:00', tardeIni: '17:00', tardeFin: '21:00' },
+            estado: 'Pendiente',
+            ultimaOperacion: null,
+            historialPrevio: [],
+            esOtrasVentas: false
+          };
+        });
+
+        clientes.push({
+          id: `${rutaId}-VAR`,
+          orden: 999,
+          nombre: `OTRAS VENTAS / MOSTRADOR (${rutaId})`,
+          contacto: 'Mostrador',
+          direccion: 'Ventas sin identificar',
+          localidad: NOMBRES_RUTAS[rutaId],
+          telefono: '',
+          lat: null,
+          lng: null,
+          horario: { tipo: '24hs', mananaIni: '00:00', mananaFin: '23:59', tardeIni: '', tardeFin: '' },
+          estado: 'Pendiente',
+          ultimaOperacion: null,
+          historialPrevio: [],
+          esOtrasVentas: true
+        });
+
+        out[rutaId] = clientes;
+      });
+      return out;
+    };
+
+    function App() {
+      const [usuariosSistema, setUsuariosSistema] = useState(() => {
+        try {
+          const saved = localStorage.getItem('bp_usuarios_v1');
+          return saved ? JSON.parse(saved) : USUARIOS_INICIALES;
+        } catch {
+          return USUARIOS_INICIALES;
+        }
+      });
+
+      const [usuarioLogueado, setUsuarioLogueado] = useState(() => {
+        try {
+          const saved = localStorage.getItem('bp_sesion_activa_v1');
+          return saved ? JSON.parse(saved) : null;
+        } catch {
+          return null;
+        }
+      });
+
+      const [loginUser, setLoginUser] = useState('');
+      const [loginPass, setLoginPass] = useState('');
+      const [loginError, setLoginError] = useState('');
+
+      const [ahoraReal, setAhoraReal] = useState(() => new Date());
+      useEffect(() => {
+        const timer = setInterval(() => setAhoraReal(new Date()), 30000);
+        return () => clearInterval(timer);
+      }, []);
+
+      const calendarioDiasHabiles = useMemo(() => obtenerCalendarioUltimosDiasHabiles(ahoraReal), [ahoraReal]);
+      const infoHoyReal = useMemo(() => {
+        const nombreDia = obtenerNombreDiaActual(ahoraReal);
+        return calendarioDiasHabiles.find((d) => d.nombreDia === nombreDia) || calendarioDiasHabiles[calendarioDiasHabiles.length - 1];
+      }, [calendarioDiasHabiles, ahoraReal]);
+
+      const horaActualFormateada = `${String(ahoraReal.getHours()).padStart(2, '0')}:${String(ahoraReal.getMinutes()).padStart(2, '0')}`;
+
+      const [diaActivo, setDiaActivo] = useState(() => obtenerNombreDiaActual(new Date()));
+      const infoDiaSeleccionado = useMemo(
+        () => calendarioDiasHabiles.find((d) => d.nombreDia === diaActivo) || infoHoyReal,
+        [calendarioDiasHabiles, diaActivo, infoHoyReal]
+      );
+
+      const esVendedor = usuarioLogueado?.rol === 'vendedor';
+      const esDireccion = usuarioLogueado?.rol === 'direccion';
+
+      const [vistaEntorno, setVistaEntorno] = useState('escritorio');
+      const [vendedorId, setVendedorId] = useState('A');
+      const [usarSubRuta, setUsarSubRuta] = useState(false);
+
+      const iniciarSesion = (usrObj) => {
+        setUsuarioLogueado(usrObj);
+        localStorage.setItem('bp_sesion_activa_v1', JSON.stringify(usrObj));
+        if (usrObj.rol === 'vendedor' && usrObj.vendedorAsignado) {
+          setVendedorId(usrObj.vendedorAsignado);
+          setVistaEntorno('movil');
+        } else {
+          setVistaEntorno('escritorio');
+        }
+      };
+
+      const [toastMsg, setToastMsg] = useState(null);
+      const mostrarToast = (texto, tipo = 'ok') => {
+        setToastMsg({ texto, tipo });
+        setTimeout(() => setToastMsg(null), 3500);
+      };
+
+      // Estados Escritorio
+      const [tabAdmin, setTabAdmin] = useState('clientes_360');
+      const [subVistaClientes, setSubVistaClientes] = useState('padron');
+      const [filtroVendedorAdmin, setFiltroVendedorAdmin] = useState('TODOS');
+      const [busquedaPadronAdmin, setBusquedaPadronAdmin] = useState('');
+      const [filtroRutaPadronAdmin, setFiltroRutaPadronAdmin] = useState('TODAS');
+      const [filtroCategoriaPadronAdmin, setFiltroCategoriaPadronAdmin] = useState('TODAS');
+      const [soloSinGpsAdmin, setSoloSinGpsAdmin] = useState(false);
+
+      const [histDiaSemana, setHistDiaSemana] = useState('Lunes');
+      const [histRutaId, setHistRutaId] = useState('R-5');
+      const [histFechaDesde, setHistFechaDesde] = useState('2026-11-01');
+      const [histFechaHasta, setHistFechaHasta] = useState('2026-11-15');
+
+      const [cliente360Seleccionado, setCliente360Seleccionado] = useState({ rutaId: 'R-5', clienteId: 'R-5-C-001' });
+      const [segRutaId] = useState('R-5');
+
+      const [clienteWaModal, setClienteWaModal] = useState(null);
+      const [tipoMensajeWa, setTipoMensajeWa] = useState('lista_precios');
+      const [fechaFeriadoWa, setFechaFeriadoWa] = useState('Lunes 23/11/2026');
+      const [mensajeLibreWa, setMensajeLibreWa] = useState('');
+
+      const [mostrarImportadorExcel, setMostrarImportadorExcel] = useState(false);
+      const [procesandoLoteExcel, setProcesandoLoteExcel] = useState(false);
+      const [resumenImportacion, setResumenImportacion] = useState(null);
+
+      const [nuevoUserNombre, setNuevoUserNombre] = useState('');
+      const [nuevoUserUsuario, setNuevoUserUsuario] = useState('');
+      const [nuevoUserPass, setNuevoUserPass] = useState('');
+      const [nuevoUserRol, setNuevoUserRol] = useState('vendedor');
+      const [nuevoUserVend, setNuevoUserVend] = useState('A');
+
+      // Estados Móvil y Modales
+      const [tabActiva, setTabActiva] = useState('ruta');
+      const [busquedaCliente, setBusquedaCliente] = useState('');
+      const [filtroEstado, setFiltroEstado] = useState('Todos');
+      const [horaReparto, setHoraReparto] = useState('12:25');
+
+      const [clienteActivoId, setClienteActivoId] = useState(null);
+      const [modoOperacion, setModoOperacion] = useState('venta');
+      const [cantidadesVenta, setCantidadesVenta] = useState({});
+      const [cantidadesCambio, setCantidadesCambio] = useState({});
+      const [cantidadesPromo, setCantidadesPromo] = useState({});
+      const [metodoPago, setMetodoPago] = useState('Efectivo');
+      const [garantiaVerificada, setGarantiaVerificada] = useState(false);
+      const [boletaSeleccionada, setBoletaSeleccionada] = useState(null);
+
+      const [clienteGeoEdit, setClienteGeoEdit] = useState(null);
+      const [rutaGeoEditId, setRutaGeoEditId] = useState(null);
+      const [editCliNombre, setEditCliNombre] = useState('');
+      const [editCliTelefono, setEditCliTelefono] = useState('');
+      const [editCliContacto, setEditCliContacto] = useState('');
+      const [editCliDireccion, setEditCliDireccion] = useState('');
+      const [editCliLocalidad, setEditCliLocalidad] = useState('');
+      const [geoInputLink, setGeoInputLink] = useState('');
+      const [geoLat, setGeoLat] = useState('');
+      const [geoLng, setGeoLng] = useState('');
+      const [horarioTipoEdit, setHorarioTipoEdit] = useState('cortado');
+      const [horarioM1IniEdit, setHorarioM1IniEdit] = useState('08:00');
+      const [horarioM1FinEdit, setHorarioM1FinEdit] = useState('13:00');
+
+      const [mostrarAltaCliente, setMostrarAltaCliente] = useState(false);
+      const [nuevoCliNombre, setNuevoCliNombre] = useState('');
+      const [nuevoCliDireccion, setNuevoCliDireccion] = useState('');
+      const [nuevoCliLocalidad, setNuevoCliLocalidad] = useState('');
+      const [nuevoCliTelefono, setNuevoCliTelefono] = useState('');
+      const [nuevoCliLat, setNuevoCliLat] = useState(null);
+      const [nuevoCliLng, setNuevoCliLng] = useState(null);
+      const [capturandoGpsNuevo, setCapturandoGpsNuevo] = useState(false);
+
+      const [rutasData, setRutasData] = useState(() => {
+        try {
+          const saved = localStorage.getItem('bp_rutas_v5_real');
+          return saved ? JSON.parse(saved) : crearEstadoInicialRutas();
+        } catch {
+          return crearEstadoInicialRutas();
+        }
+      });
+
+      useEffect(() => {
+        try {
+          localStorage.setItem('bp_rutas_v5_real', JSON.stringify(rutasData));
+        } catch {}
+      }, [rutasData]);
+
+      const limpiarBaseACero = () => {
+        const limpio = crearEstadoInicialRutas();
+        setRutasData(limpio);
+        setResumenImportacion(null);
+        localStorage.setItem('bp_rutas_v5_real', JSON.stringify(limpio));
+        mostrarToast('Base limpia en $ 0. Lista para importar tus Excel reales.');
+      };
+
+      const [stockInicial, setStockInicial] = useState(STOCK_INICIAL_BASE);
+// ... existing code ... -->
+      const procesarArchivoExcelVentas = async (e) => {
+        const files = Array.from(e.target.files || []);
+        if (!files.length) return;
+        setProcesandoLoteExcel(true);
+        try {
+          let totalOps = 0, totalMonto = 0, clientesExistentesMatch = 0, clientesNuevosDadosDeAlta = 0, filasOtrasVentas = 0;
+          const detallePorFecha = {};
+          const resumenPorRepartidor = { A: { nombre: 'Gabriel (Vend. A)', ops: 0, monto: 0 }, B: { nombre: 'Facundo (Vend. B)', ops: 0, monto: 0 }, C: { nombre: 'Federico (Vend. C)', ops: 0, monto: 0 } };
+          const nuevoEstado = JSON.parse(JSON.stringify(rutasData));
+
+          const normalizarTxt = (s) =>
+            String(s || '')
+              .normalize('NFD')
+              .replace(/[\u0300-\u036f]/g, '')
+              .toUpperCase()
+              .replace(/[^A-Z0-9\s]/g, ' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+
+          const parsearNumero = (val) => {
+            if (typeof val === 'number') return Number.isFinite(val) ? val : 0;
+            const str = String(val || '').replace(/[$\s]/g, '').trim();
+            if (!str) return 0;
+            // Soporta tanto formato AR (1.250,50) como US (1,250.50)
+            const limpio = str.includes(',') && str.includes('.')
+              ? (str.lastIndexOf(',') > str.lastIndexOf('.') ? str.replace(/\./g, '').replace(',', '.') : str.replace(/,/g, ''))
+              : str.includes(',')
+              ? str.replace(',', '.')
+              : str.replace(/\.(?=\d{3}\b)/g, '');
+            const n = parseFloat(limpio);
+            return Number.isFinite(n) ? n : 0;
+          };
+
+          const diasJs = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+          for (const file of files) {
+            const buf = await file.arrayBuffer();
+            const wb = XLSX.read(buf, { type: 'array' });
+            const matchFecha = file.name.match(/(\d{1,2})[-_](\d{1,2})(?:[-_](\d{2,4}))?/);
+            const diaNum = matchFecha ? parseInt(matchFecha[1], 10) : ahoraReal.getDate();
+            const mesNum = matchFecha ? parseInt(matchFecha[2], 10) : (ahoraReal.getMonth() + 1);
+            const anioNum = matchFecha && matchFecha[3]
+              ? (matchFecha[3].length === 2 ? 2000 + parseInt(matchFecha[3], 10) : parseInt(matchFecha[3], 10))
+              : 2026;
+
+            const fIso = `${anioNum}-${String(mesNum).padStart(2, '0')}-${String(diaNum).padStart(2, '0')}`;
+            const fechaObj = new Date(anioNum, mesNum - 1, diaNum);
+            const nombreDiaArchivo = diasJs[fechaObj.getDay()] || 'Lunes';
+
+            let opsArchivo = 0;
+            let montoArchivo = 0;
+
+            wb.SheetNames.forEach((sheetName) => {
+              const sNorm = normalizarTxt(sheetName);
+              // Detectar solapa por repartidor: GABRIEL -> A, FACUNDO -> B, FEDERICO -> C
+              let vendedorSheet = null;
+              if (sNorm.includes('GABRIEL') || sNorm.includes('VENDEDOR A')) vendedorSheet = 'A';
+              else if (sNorm.includes('FACUNDO') || sNorm.includes('VENDEDOR B')) vendedorSheet = 'B';
+              else if (sNorm.includes('FEDERICO') || sNorm.includes('VENDEDOR C')) vendedorSheet = 'C';
+
+              // Si el libro tiene solapas de reparto específicas, ignorar hojas auxiliares que no sean de reparto
+              const tieneSolapasReparto = wb.SheetNames.some((n) => {
+                const nn = normalizarTxt(n);
+                return nn.includes('GABRIEL') || nn.includes('FACUNDO') || nn.includes('FEDERICO');
+              });
+              if (tieneSolapasReparto && !vendedorSheet) return;
+
+              const sheet = wb.Sheets[sheetName];
+              const matriz = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+              if (!matriz || matriz.length < 2) return;
+
+              // Determinar ruta del día según vendedor y fecha del archivo
+              let rutaDetectada = null;
+              if (vendedorSheet) {
+                const ag = PLANIFICACION_VENDEDORES[vendedorSheet]?.agenda?.[nombreDiaArchivo];
+                rutaDetectada = ag?.rutaId || (vendedorSheet === 'A' ? 'R-5' : vendedorSheet === 'B' ? 'R-1' : 'R-3');
+              }
+
+              // Buscar fila de encabezados (escaneando las primeras 15 filas)
+              let idxHeader = -1;
+              for (let i = 0; i < Math.min(15, matriz.length); i++) {
+                const fila = matriz[i] || [];
+                const coincide = fila.some((cel) => {
+                  const t = normalizarTxt(cel);
+                  return t === 'CLIENTE' || t === 'COMERCIO' || t.includes('NOMBRE') || t.includes('RAZON SOCIAL') || t.includes('LOCAL');
+                });
+                if (coincide) {
+                  idxHeader = i;
+                  break;
+                }
+              }
+              if (idxHeader === -1) idxHeader = 0;
+              const headers = (matriz[idxHeader] || []).map((h) => normalizarTxt(h));
+
+              let colCliente = headers.findIndex((h) => h === 'CLIENTE' || h === 'COMERCIO' || h.includes('CLIENTE') || h.includes('COMERCIO') || h.includes('NOMBRE'));
+              if (colCliente === -1) colCliente = 0;
+              const colDireccion = headers.findIndex((h) => h.includes('DIRECCION') || h.includes('DOMICILIO') || h.includes('CALLE'));
+              const colLocalidad = headers.findIndex((h) => h.includes('LOCALIDAD') || h.includes('ZONA') || h.includes('BARRIO'));
+              const colTelefono = headers.findIndex((h) => h.includes('TELEFONO') || h.includes('CELULAR') || h.includes('TEL'));
+              const colTotal = headers.findIndex((h) => h.includes('TOTAL') || h.includes('IMPORTE') || h.includes('VENTA') || h.includes('MONTO') || h.includes('NETO'));
+              const colCambio = headers.findIndex((h) => h.includes('CAMBIO') || h.includes('DEVOL') || h.includes('MERMA'));
+              const colPromo = headers.findIndex((h) => h.includes('PROMO') || h.includes('BONIF'));
+              const colPago = headers.findIndex((h) => h.includes('PAGO') || h.includes('COND') || h.includes('CTA') || h.includes('TRANSF') || h.includes('EFECTIVO'));
+
+              // Mapear columnas de productos por coincidencia flexible de nombre
+              const colsProductos = [];
+              headers.forEach((h, cIdx) => {
+                if ([colCliente, colDireccion, colLocalidad, colTelefono, colTotal, colCambio, colPromo, colPago].includes(cIdx) || !h) return;
+                const prodMatch = CATALOGO_PRODUCTOS.find((p) => {
+                  const pBase = normalizarTxt(p.nombre).split(' X ')[0].trim();
+                  return h.includes(pBase) || (pBase.length >= 5 && pBase.includes(h) && h.length >= 4);
+                });
+                if (prodMatch) colsProductos.push({ cIdx, prod: prodMatch });
+              });
+
+              for (let r = idxHeader + 1; r < matriz.length; r++) {
+                const fila = matriz[r] || [];
+                const rawCli = String(fila[colCliente] ?? '').trim();
+                const nomNorm = normalizarTxt(rawCli);
+                if (!nomNorm || nomNorm.length < 2) continue;
+                if (nomNorm.startsWith('TOTAL') || nomNorm.startsWith('SUBTOTAL') || nomNorm === 'CLIENTE' || nomNorm === 'COMERCIO' || nomNorm.startsWith('REPARTO ')) continue;
+
+                const itemsVendidos = {};
+                let sumaProductos = 0;
+                colsProductos.forEach(({ cIdx, prod }) => {
+                  const qty = Math.round(parsearNumero(fila[cIdx]));
+                  if (qty > 0) {
+                    itemsVendidos[prod.id] = (itemsVendidos[prod.id] || 0) + qty;
+                    sumaProductos += qty * prod.precio;
+                  }
+                });
+
+                const montoLeido = colTotal >= 0 ? parsearNumero(fila[colTotal]) : 0;
+                const totalVenta = montoLeido > 0 ? montoLeido : sumaProductos;
+                const totalCambio = colCambio >= 0 ? parsearNumero(fila[colCambio]) : 0;
+                const totalPromoValor = colPromo >= 0 ? parsearNumero(fila[colPromo]) : 0;
+
+                const esOtras = nomNorm.includes('OTRA') || nomNorm.includes('VARI') || nomNorm.includes('MOSTRADOR') || nomNorm.includes('SIN IDENT');
+
+                // Buscar cliente existente en la ruta detectada o en todo el padrón
+                let rutaDestino = rutaDetectada || 'R-1';
+                let clienteDestino = null;
+
+                if (!esOtras) {
+                  const buscarEn = rutaDetectada ? [rutaDetectada, ...Object.keys(nuevoEstado).filter((k) => k !== rutaDetectada)] : Object.keys(nuevoEstado);
+                  for (const rKey of buscarEn) {
+                    const encontrado = (nuevoEstado[rKey] || []).find((c) => {
+                      if (c.esOtrasVentas) return false;
+                      const cNorm = normalizarTxt(c.nombre);
+                      const cBase = cNorm.split('(')[0].trim();
+                      return cNorm === nomNorm || (cBase.length >= 4 && (nomNorm.includes(cBase) || cBase.includes(nomNorm)));
+                    });
+                    if (encontrado) {
+                      rutaDestino = rKey;
+                      clienteDestino = encontrado;
+                      clientesExistentesMatch += 1;
+                      break;
+                    }
+                  }
+
+                  // Si el cliente del Excel no existía aún en la base, DARLO DE ALTA automáticamente en esa ruta
+                  if (!clienteDestino) {
+                    const listaActual = nuevoEstado[rutaDestino] || [];
+                    const realesCount = listaActual.filter((c) => !c.esOtrasVentas).length;
+                    const nuevoClienteObj = {
+                      id: `${rutaDestino}-C-${String(realesCount + 1).padStart(3, '0')}`,
+                      orden: realesCount + 1,
+                      nombre: rawCli.toUpperCase(),
+                      contacto: '',
+                      direccion: colDireccion >= 0 ? String(fila[colDireccion] || '').trim() : '',
+                      localidad: colLocalidad >= 0 && fila[colLocalidad] ? String(fila[colLocalidad]).trim().toUpperCase() : (NOMBRES_RUTAS[rutaDestino] || 'TUCUMÁN'),
+                      telefono: colTelefono >= 0 ? String(fila[colTelefono] || '').trim() : '',
+                      lat: null,
+                      lng: null,
+                      horario: { tipo: 'cortado', mananaIni: '08:00', mananaFin: '13:00', tardeIni: '17:00', tardeFin: '21:00' },
+                      estado: 'Pendiente',
+                      ultimaOperacion: null,
+                      historialPrevio: [],
+                      esOtrasVentas: false,
+                      esNuevo: true
+                    };
+                    // Insertar antes del comodín OTRAS VENTAS
+                    const idxComodin = listaActual.findIndex((c) => c.esOtrasVentas);
+                    if (idxComodin >= 0) listaActual.splice(idxComodin, 0, nuevoClienteObj);
+                    else listaActual.push(nuevoClienteObj);
+                    nuevoEstado[rutaDestino] = listaActual;
+                    clienteDestino = nuevoClienteObj;
+                    clientesNuevosDadosDeAlta += 1;
+                  }
+                } else {
+                  clienteDestino = (nuevoEstado[rutaDestino] || []).find((c) => c.esOtrasVentas) || (nuevoEstado[rutaDestino] || [])[0];
+                  filasOtrasVentas += 1;
+                }
+
+                // Si la fila tiene monto o productos vendidos, registrar operación en el historial del cliente
+                if (clienteDestino && (totalVenta > 0 || totalCambio > 0 || totalPromoValor > 0 || Object.keys(itemsVendidos).length > 0)) {
+                  const pagoNorm = colPago >= 0 ? normalizarTxt(fila[colPago]) : '';
+                  const metodoPago = pagoNorm.includes('CTA') || pagoNorm.includes('CORRIENTE') || pagoNorm.includes('FIADO')
+                    ? 'Cuenta Corriente'
+                    : pagoNorm.includes('TRANSF') || pagoNorm.includes('MP') || pagoNorm.includes('ALIAS')
+                    ? 'Transferencia'
+                    : 'Efectivo';
+
+                  const nroComp = `IMP-${fIso.replace(/-/g, '')}-${String(totalOps + 1).padStart(4, '0')}`;
+                  clienteDestino.historialPrevio = (clienteDestino.historialPrevio || []).filter(
+                    (h) => !(h.fecha === fIso && h.origenExcel === file.name && h.totalVenta === totalVenta)
+                  );
+                  clienteDestino.historialPrevio.push({
+                    fecha: fIso,
+                    numeroComprobante: nroComp,
+                    hora: '12:00',
+                    totalVenta,
+                    totalCambio,
+                    totalPromoValor,
+                    neto: totalVenta - totalCambio,
+                    metodoPago,
+                    itemsVendidos,
+                    itemsCambiados: {},
+                    itemsPromocion: {},
+                    origenExcel: file.name,
+                    repartidor: vendedorSheet || ''
+                  });
+
+                  if (vendedorSheet && resumenPorRepartidor[vendedorSheet]) {
+                    resumenPorRepartidor[vendedorSheet].ops += 1;
+                    resumenPorRepartidor[vendedorSheet].monto += totalVenta;
+                  }
+
+                  opsArchivo += 1;
+                  montoArchivo += totalVenta;
+                  totalOps += 1;
+                  totalMonto += totalVenta;
+                }
+              }
+            });
+
+            detallePorFecha[fIso] = { archivo: file.name, dia: nombreDiaArchivo, ops: opsArchivo, monto: montoArchivo };
+          }
+
+          setRutasData(nuevoEstado);
+          setResumenImportacion({
+            archivosProcesados: files.length,
+            filasProcesadas: totalOps,
+            montoTotalImportado: totalMonto,
+            clientesIdentificados: clientesExistentesMatch,
+            clientesNuevosDadosDeAlta,
+            filasOtrasVentas,
+            detallePorFecha,
+            resumenPorRepartidor
+          });
+          mostrarToast(`Importados ${files.length} archivos (${clientesNuevosDadosDeAlta} clientes nuevos dados de alta)`);
+        } catch (err) {
+          mostrarToast('Error al leer alguno de los archivos Excel', 'error');
+        } finally {
+          setProcesandoLoteExcel(false);
+          e.target.value = '';
+        }
+      };
+
+      const manejarSubmitLogin = (e) => {
+        e.preventDefault();
+        const found = usuariosSistema.find(
+          (u) => u.usuario.toLowerCase() === loginUser.trim().toLowerCase() && u.password === loginPass
+        );
+        if (!found) {
+          setLoginError('Usuario o contraseña incorrectos.');
+          return;
+        }
+        setLoginError('');
+        iniciarSesion(found);
+      };
+
+      const cerrarSesion = () => {
+        setUsuarioLogueado(null);
+        localStorage.removeItem('bp_sesion_activa_v1');
+      };
+
+      const vendedorObj = PLANIFICACION_VENDEDORES[vendedorId] || PLANIFICACION_VENDEDORES.A;
+      const agendaDia = vendedorObj.agenda[diaActivo] || { rutaId: null, nombre: 'Sin Ruta', objetivo: 0 };
+      const rutaActivaId = usarSubRuta && agendaDia.subRutaId ? agendaDia.subRutaId : agendaDia.rutaId;
+      const rutaActivaNombre = usarSubRuta && agendaDia.subNombre ? agendaDia.subNombre : agendaDia.nombre;
+      const objetivoDia = agendaDia.objetivo || 0;
+      const clientesRuta = useMemo(() => (rutaActivaId ? rutasData[rutaActivaId] || [] : []), [rutasData, rutaActivaId]);
+
+      const metricas = useMemo(() => {
+        let ventaBruta = 0, totalCambios = 0, recaudadoEfectivo = 0, recaudadoTransferencia = 0, saldoCtaCte = 0, visitados = 0;
+        const stockDisp = { ...stockInicial };
+        clientesRuta.forEach((cli) => {
+          if (cli.estado === 'Visitado' || cli.estado === 'Sin Compra') visitados += 1;
+          if (cli.estado === 'Visitado' && cli.ultimaOperacion) {
+            const op = cli.ultimaOperacion;
+            ventaBruta += op.totalVenta || 0;
+            totalCambios += op.totalCambio || 0;
+            if (op.metodoPago === 'Efectivo') recaudadoEfectivo += op.neto || 0;
+            if (op.metodoPago === 'Transferencia') recaudadoTransferencia += op.neto || 0;
+            if (op.metodoPago === 'Cuenta Corriente') saldoCtaCte += op.neto || 0;
+            Object.entries(op.itemsVendidos || {}).forEach(([pid, q]) => {
+              if (stockDisp[pid] !== undefined) stockDisp[pid] = Math.max(0, stockDisp[pid] - q);
+            });
+          }
+        });
+        const ventaNeta = ventaBruta - totalCambios;
+        const porcentajeObjetivo = objetivoDia > 0 ? Math.round((ventaNeta / objetivoDia) * 100) : 0;
+        return {
+          ventaBruta,
+          totalCambios,
+          ventaNeta,
+          recaudadoEfectivo,
+          recaudadoTransferencia,
+          saldoCtaCte,
+          visitados,
+          stockDisponible: stockDisp,
+          porcentajeObjetivo,
+          faltaObjetivo: Math.max(0, objetivoDia - ventaNeta),
+          superadoObjetivo: Math.max(0, ventaNeta - objetivoDia)
+        };
+      }, [clientesRuta, stockInicial, objetivoDia]);
+
+      const resumenPorVendedorEscritorio = useMemo(() => {
+        const fechaObjetivoIso = infoDiaSeleccionado?.iso;
+        const esJornadaDeHoy = infoDiaSeleccionado?.esHoy;
+
+        return ['A', 'B', 'C'].map((vId) => {
+          const vObj = PLANIFICACION_VENDEDORES[vId];
+          const ag = vObj.agenda[diaActivo] || { rutaId: null, nombre: 'Sin Ruta', objetivo: 0 };
+          const rId = ag.rutaId;
+          const lista = rId ? (rutasData[rId] || []).filter((c) => !c.esOtrasVentas) : [];
+          let visitados = 0, ventaBruta = 0, totalCambiosMonto = 0, totalCambiosUnidades = 0;
+          let totalTransferencias = 0, totalCtaCte = 0, totalPromosUnidades = 0, totalPromosMonto = 0;
+
+          lista.forEach((cli) => {
+            const opsDelDia = [];
+            (cli.historialPrevio || []).forEach((h) => {
+              if (h.fecha === fechaObjetivoIso) opsDelDia.push(h);
+            });
+            if (cli.estado === 'Visitado' && cli.ultimaOperacion) {
+              const fOp = cli.ultimaOperacion.fecha || infoHoyReal?.iso;
+              if (fOp === fechaObjetivoIso) opsDelDia.push(cli.ultimaOperacion);
+            }
+
+            if (opsDelDia.length > 0 || (esJornadaDeHoy && cli.estado === 'Sin Compra')) {
+              visitados += 1;
+            }
+
+            opsDelDia.forEach((op) => {
+              ventaBruta += op.totalVenta || 0;
+              totalCambiosMonto += op.totalCambio || 0;
+              if (op.metodoPago === 'Transferencia') totalTransferencias += op.neto || 0;
+              if (op.metodoPago === 'Cuenta Corriente') totalCtaCte += op.neto || 0;
+              Object.values(op.itemsCambiados || {}).forEach((q) => { totalCambiosUnidades += q || 0; });
+              Object.entries(op.itemsPromocion || {}).forEach(([pid, q]) => {
+                const p = CATALOGO_PRODUCTOS.find((x) => x.id === pid);
+                totalPromosUnidades += q || 0;
+                totalPromosMonto += (p ? p.precio : 0) * (q || 0);
+              });
+            });
+          });
+
+          const facturacionNeta = ventaBruta - totalCambiosMonto;
+          const objetivo = ag.objetivo || 0;
+          const cumplimientoRutaPct = lista.length > 0 ? Math.round((visitados / lista.length) * 100) : 0;
+          const cumplimientoObjPct = objetivo > 0 ? Math.round((facturacionNeta / objetivo) * 100) : 0;
+
+          return {
+            vendedorId: vId,
+            nombre: vObj.nombre,
+            vehiculo: vObj.vehiculo,
+            zonaMacro: vObj.zonaMacro,
+            rutaId: rId,
+            nombreRuta: ag.nombre,
+            totalClientes: lista.length,
+            visitados,
+            cumplimientoRutaPct,
+            facturacionNeta,
+            objetivo,
+            cumplimientoObjPct,
+            objetivoCumplido: objetivo > 0 && facturacionNeta >= objetivo,
+            faltaObjetivo: Math.max(0, objetivo - facturacionNeta),
+            superadoObjetivo: Math.max(0, facturacionNeta - objetivo),
+            totalTransferencias,
+            totalCtaCte,
+            totalPromosUnidades,
+            totalPromosMonto,
+            totalCambiosUnidades,
+            totalCambiosMonto
+          };
+        });
+      }, [rutasData, diaActivo, infoDiaSeleccionado, infoHoyReal]);
+
+      const metricasGlobalesEmpresa = useMemo(() => {
+        const fechaObjetivoIso = infoDiaSeleccionado?.iso;
+        let totalBruta = 0, totalCambios = 0, totalEfectivo = 0, totalTransferencia = 0, totalCtaCte = 0;
+        let totalClientesActivos = 0, totalClientesConGps = 0, totalClientesNuevos = 0;
+        const boletasLista = [];
+        const resumenRutas = [];
+        const prodMap = {};
+
+        Object.entries(rutasData).forEach(([rId, lista]) => {
+          let rNeta = 0, rVis = 0;
+          lista.forEach((cli) => {
+            if (!cli.esOtrasVentas) {
+              totalClientesActivos += 1;
+              if (cli.lat !== null && cli.lng !== null) totalClientesConGps += 1;
+              if (cli.esNuevo) totalClientesNuevos += 1;
+            }
+            const opsDelDia = [];
+            (cli.historialPrevio || []).forEach((h) => {
+              if (h.fecha === fechaObjetivoIso) opsDelDia.push(h);
+            });
+            if (cli.estado === 'Visitado' && cli.ultimaOperacion) {
+              const fOp = cli.ultimaOperacion.fecha || infoHoyReal?.iso;
+              if (fOp === fechaObjetivoIso) opsDelDia.push(cli.ultimaOperacion);
+            }
+            if (opsDelDia.length > 0 && !cli.esOtrasVentas) rVis += 1;
+
+            opsDelDia.forEach((op) => {
+              totalBruta += op.totalVenta || 0;
+              totalCambios += op.totalCambio || 0;
+              rNeta += op.neto || 0;
+              if (op.metodoPago === 'Efectivo') totalEfectivo += op.neto || 0;
+              if (op.metodoPago === 'Transferencia') totalTransferencia += op.neto || 0;
+              if (op.metodoPago === 'Cuenta Corriente') totalCtaCte += op.neto || 0;
+              boletasLista.push({ ...cli, rutaId: rId, ultimaOperacion: op });
+              Object.entries(op.itemsVendidos || {}).forEach(([pid, q]) => {
+                if (!prodMap[pid]) prodMap[pid] = { vendidos: 0, ingresos: 0 };
+                const pObj = CATALOGO_PRODUCTOS.find((p) => p.id === pid);
+                prodMap[pid].vendidos += q;
+                prodMap[pid].ingresos += (pObj ? pObj.precio : 0) * q;
+              });
+            });
+          });
+          resumenRutas.push({
+            rutaId: rId,
+            nombreRuta: NOMBRES_RUTAS[rId] || rId,
+            ventaNeta: rNeta,
+            visitados: rVis,
+            clientesCount: lista.filter((c) => !c.esOtrasVentas).length
+          });
+        });
+
+        const rankingProductos = CATALOGO_PRODUCTOS.map((p) => ({
+          ...p,
+          vendidos: prodMap[p.id]?.vendidos || 0,
+          ingresos: prodMap[p.id]?.ingresos || 0
+        })).sort((a, b) => b.ingresos - a.ingresos);
+
+        return {
+          totalBruta,
+          totalCambios,
+          totalNeta: totalBruta - totalCambios,
+          totalEfectivo,
+          totalTransferencia,
+          totalCtaCte,
+          totalClientesActivos,
+          totalClientesConGps,
+          totalClientesNuevos,
+          boletasLista,
+          resumenRutas,
+          rankingProductos
+        };
+      }, [rutasData, infoDiaSeleccionado, infoHoyReal]);
+
+      const coberturaGpsPct = metricasGlobalesEmpresa.totalClientesActivos > 0
+        ? Math.round((metricasGlobalesEmpresa.totalClientesConGps / metricasGlobalesEmpresa.totalClientesActivos) * 100)
+        : 0;
+
+      // Padrón con clasificación A+..E y filtros
+      const padronConClasificacion = useMemo(() => {
+        const todos = [];
+        Object.entries(rutasData).forEach(([rId, lista]) => {
+          lista.forEach((cli) => {
+            const clasificacion = calcularClasificacionCliente(cli);
+            const ops = [...(cli.historialPrevio || [])];
+            if (cli.estado === 'Visitado' && cli.ultimaOperacion) ops.push(cli.ultimaOperacion);
+            const saldoCtaCteActual = ops.reduce((acc, o) => acc + (o.metodoPago === 'Cuenta Corriente' ? (o.neto || 0) : 0), 0);
+            todos.push({ ...cli, rutaId: rId, clasificacion, saldoCtaCteActual });
+          });
+        });
+        return todos;
+      }, [rutasData]);
+
+      const padronFiltrado = useMemo(() => {
+        const q = busquedaPadronAdmin.toLowerCase();
+        return padronConClasificacion.filter((c) => {
+          if (filtroRutaPadronAdmin !== 'TODAS' && c.rutaId !== filtroRutaPadronAdmin) return false;
+          if (filtroCategoriaPadronAdmin !== 'TODAS' && c.clasificacion.codigo !== filtroCategoriaPadronAdmin) return false;
+          if (soloSinGpsAdmin && c.lat !== null && c.lng !== null) return false;
+          if (!q) return true;
+          return (
+            c.nombre.toLowerCase().includes(q) ||
+            (c.direccion || '').toLowerCase().includes(q) ||
+            (c.telefono || '').toLowerCase().includes(q) ||
+            c.id.toLowerCase().includes(q)
+          );
+        });
+      }, [padronConClasificacion, busquedaPadronAdmin, filtroRutaPadronAdmin, filtroCategoriaPadronAdmin, soloSinGpsAdmin]);
+
+      const abrirFicha360Cliente = (rutaId, clienteId) => {
+        setCliente360Seleccionado({ rutaId, clienteId });
+        setSubVistaClientes('ficha');
+      };
+
+      const evaluarClienteSeguimiento = (cli) => {
+        const opsFiltradas = [...(cli.historialPrevio || [])];
+        if (cli.estado === 'Visitado' && cli.ultimaOperacion) opsFiltradas.push(cli.ultimaOperacion);
+        let totalComprado = 0, totalCambios = 0, unidVend = 0, unidCamb = 0, saldoPendiente = 0;
+        const prodCompras = {};
+        opsFiltradas.forEach((op) => {
+          totalComprado += op.totalVenta || 0;
+          totalCambios += op.totalCambio || 0;
+          if (op.metodoPago === 'Cuenta Corriente') saldoPendiente += op.neto || 0;
+          Object.entries(op.itemsVendidos || {}).forEach(([pid, q]) => {
+            unidVend += q;
+            prodCompras[pid] = (prodCompras[pid] || 0) + q;
+          });
+          Object.values(op.itemsCambiados || {}).forEach((q) => { unidCamb += q; });
+        });
+        const ratioCambiosUnidPct = unidVend > 0 ? Math.round((unidCamb / unidVend) * 100) : 0;
+        return { opsFiltradas, totalComprado, totalCambios, saldoPendiente, ratioCambiosUnidPct, prodCompras };
+      };
+
+      const enviarEstadoCtaCteWhatsApp = (cli, evalObj) => {
+        const msg = `Hola *${cli.nombre}*! Te saludamos de *Buendía Pan* 🥖.\nTe compartimos tu estado de Cuenta Corriente:\n• Saldo pendiente: *${formatARS(evalObj.saldoPendiente)}*\n¡Muchas gracias!`;
+        const tel = (cli.telefono || '').replace(/\D/g, '');
+        window.open(`https://wa.me/${tel ? `549${tel}` : ''}?text=${encodeURIComponent(msg)}`, '_blank');
+      };
+
+      const abrirModalGeorreferencia = (cli, rId = rutaActivaId) => {
+        setClienteGeoEdit(cli);
+        setRutaGeoEditId(rId);
+        setEditCliNombre(cli.nombre || '');
+        setEditCliTelefono(cli.telefono || '');
+        setEditCliContacto(cli.contacto || '');
+        setEditCliDireccion(cli.direccion || '');
+        setEditCliLocalidad(cli.localidad || '');
+        setGeoInputLink('');
+        setGeoLat(cli.lat !== null ? String(cli.lat) : '');
+        setGeoLng(cli.lng !== null ? String(cli.lng) : '');
+        const h = cli.horario || { tipo: 'cortado', mananaIni: '08:00', mananaFin: '13:00' };
+        setHorarioTipoEdit(h.tipo || 'cortado');
+        setHorarioM1IniEdit(h.mananaIni || '08:00');
+        setHorarioM1FinEdit(h.mananaFin || '13:00');
+      };
+
+      const extraerCoordenadasDeTexto = (txt) => {
+        setGeoInputLink(txt);
+        const match = txt.match(/(-?\d+\.\d+)\s*,\s*(-?\d+\.\d+)/);
+        if (match) {
+          setGeoLat(match[1]);
+          setGeoLng(match[2]);
+        }
+      };
+
+      const guardarGeorreferenciaCliente = () => {
+        const targetRuta = rutaGeoEditId || rutaActivaId;
+        const latNum = geoLat !== '' && !Number.isNaN(parseFloat(geoLat)) ? parseFloat(geoLat) : null;
+        const lngNum = geoLng !== '' && !Number.isNaN(parseFloat(geoLng)) ? parseFloat(geoLng) : null;
+        setRutasData((prev) => ({
+          ...prev,
+          [targetRuta]: (prev[targetRuta] || []).map((c) =>
+            c.id === clienteGeoEdit.id
+              ? {
+                  ...c,
+                  nombre: editCliNombre || c.nombre,
+                  telefono: editCliTelefono,
+                  contacto: editCliContacto,
+                  direccion: editCliDireccion,
+                  localidad: editCliLocalidad,
+                  lat: latNum,
+                  lng: lngNum,
+                  horario: { ...c.horario, tipo: horarioTipoEdit, mananaIni: horarioM1IniEdit, mananaFin: horarioM1FinEdit }
+                }
+              : c
+          )
+        }));
+        setClienteGeoEdit(null);
+        mostrarToast('Ficha del cliente actualizada');
+      };
+
+      const generarTextoWhatsAppPlantilla = (cli, tipo) => {
+        if (tipo === 'lista_precios') {
+          const lineas = CATALOGO_PRODUCTOS.map((p) => `• ${p.nombre}: *${formatARS(p.precio)}*`).join('\n');
+          return `Hola *${cli.nombre}*! Te compartimos la *Lista de Precios Vigente — Buendía Pan* 🥖:\n\n${lineas}\n\n¡Quedamos a disposición!`;
+        }
+        if (tipo === 'cta_cte') {
+          return `Hola *${cli.nombre}*! Te recordamos tu saldo en Cuenta Corriente con *Buendía Pan*: *${formatARS(cli.saldoCtaCteActual || 0)}*. ¡Muchas gracias!`;
+        }
+        if (tipo === 'feriado') {
+          return `Hola *${cli.nombre}*! Te avisamos desde *Buendía Pan* que el día *${fechaFeriadoWa}* es feriado y no habrá reparto. ¡Anticipá tu pedido!`;
+        }
+        return mensajeLibreWa || `Hola *${cli.nombre}*, te saludamos de *Buendía Pan*!`;
+      };
+
+      const enviarMensajeWhatsAppDesdePadron = () => {
+        const txt = generarTextoWhatsAppPlantilla(clienteWaModal, tipoMensajeWa);
+        const tel = (clienteWaModal.telefono || '').replace(/\D/g, '');
+        window.open(`https://wa.me/${tel ? `549${tel}` : ''}?text=${encodeURIComponent(txt)}`, '_blank');
+        setClienteWaModal(null);
+      };
+
+      const exportarDatosExcelBI = () => {
+        const filas = [['Fecha', 'Comprobante', 'Vendedor', 'Ruta', 'Cliente', 'Metodo_Pago', 'Venta_Bruta', 'Cambios', 'Neto']];
+        metricasGlobalesEmpresa.boletasLista.forEach((b) => {
+          const op = b.ultimaOperacion;
+          filas.push([op.fecha || infoDiaSeleccionado.iso, op.numeroComprobante, b.rutaId, NOMBRES_RUTAS[b.rutaId], `"${b.nombre}"`, op.metodoPago, op.totalVenta, op.totalCambio, op.neto]);
+        });
+        const csv = '\uFEFF' + filas.map((r) => r.join(';')).join('\n');
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Ventas_BuendiaPan_${infoDiaSeleccionado.iso}.csv`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        mostrarToast('Reporte descargado para Excel / Power BI');
+      };
+
+      const crearUsuarioSistema = (e) => {
+        e.preventDefault();
+        const nuevo = {
+          id: `usr-${Date.now()}`,
+          usuario: nuevoUserUsuario.trim(),
+          password: nuevoUserPass.trim(),
+          nombreCompleto: nuevoUserNombre.trim(),
+          rol: nuevoUserRol,
+          etiquetaRol: nuevoUserRol.toUpperCase(),
+          vendedorAsignado: nuevoUserRol === 'vendedor' ? nuevoUserVend : null,
+          activo: true
+        };
+        const upd = [...usuariosSistema, nuevo];
+        setUsuariosSistema(upd);
+        localStorage.setItem('bp_usuarios_v1', JSON.stringify(upd));
+        setNuevoUserNombre('');
+        setNuevoUserUsuario('');
+        setNuevoUserPass('');
+        mostrarToast('Usuario creado');
+      };
+
+      const alternarEstadoUsuario = (id) => {
+        const upd = usuariosSistema.map((u) => (u.id === id ? { ...u, activo: !u.activo } : u));
+        setUsuariosSistema(upd);
+        localStorage.setItem('bp_usuarios_v1', JSON.stringify(upd));
+      };
+
+      // Funciones Móvil
+      const clientesConAlertaHorario = useMemo(
+        () => clientesRuta.map((c) => ({ ...c, infoHorario: evaluarEstadoHorario(c.horario, horaReparto) })),
+        [clientesRuta, horaReparto]
+      );
+
+      const resumenAlertasCierre = useMemo(() => ({
+        pendientesPorCerrar: clientesConAlertaHorario.filter((c) => c.estado === 'Pendiente' && c.infoHorario.estado === 'por_cerrar')
+      }), [clientesConAlertaHorario]);
+
+      const clientesFiltrados = useMemo(() => {
+        const q = busquedaCliente.toLowerCase();
+        return clientesConAlertaHorario.filter((c) => {
+          if (filtroEstado === 'PorCerrar' && !(c.estado === 'Pendiente' && c.infoHorario.estado === 'por_cerrar')) return false;
+          if (filtroEstado === 'Pendientes' && c.estado !== 'Pendiente') return false;
+          if (filtroEstado === 'Visitados' && c.estado !== 'Visitado') return false;
+          if (!q) return true;
+          return c.nombre.toLowerCase().includes(q) || (c.direccion || '').toLowerCase().includes(q);
+        });
+      }, [clientesConAlertaHorario, busquedaCliente, filtroEstado]);
+
+      const abrirNavegacionGoogleMaps = (cli) => {
+        const dest = cli.lat !== null && cli.lng !== null
+          ? `${cli.lat},${cli.lng}`
+          : encodeURIComponent(`${cli.direccion}, ${cli.localidad}, Tucumán, Argentina`);
+        window.open(`https://www.google.com/maps/dir/?api=1&destination=${dest}&travelmode=driving`, '_blank');
+      };
+
+      const clienteModalObj = useMemo(() => clientesRuta.find((c) => c.id === clienteActivoId) || null, [clientesRuta, clienteActivoId]);
+
+      const abrirOperacionCliente = (cli) => {
+        setClienteActivoId(cli.id);
+        setModoOperacion('venta');
+        setCantidadesVenta(cli.ultimaOperacion?.itemsVendidos || {});
+        setCantidadesCambio(cli.ultimaOperacion?.itemsCambiados || {});
+        setCantidadesPromo(cli.ultimaOperacion?.itemsPromocion || {});
+        setMetodoPago(cli.ultimaOperacion?.metodoPago || 'Efectivo');
+        setGarantiaVerificada(false);
+      };
+
+      const ajustarCantidad = (tipo, pid, delta) => {
+        const setter = tipo === 'venta' ? setCantidadesVenta : tipo === 'cambio' ? setCantidadesCambio : setCantidadesPromo;
+        setter((prev) => ({ ...prev, [pid]: Math.max(0, (prev[pid] || 0) + delta) }));
+      };
+
+      const confirmarPedidoCliente = () => {
+        let totalVenta = 0, totalCambio = 0, totalPromoValor = 0;
+        CATALOGO_PRODUCTOS.forEach((p) => {
+          totalVenta += (cantidadesVenta[p.id] || 0) * p.precio;
+          totalCambio += (cantidadesCambio[p.id] || 0) * p.precio;
+          totalPromoValor += (cantidadesPromo[p.id] || 0) * p.precio;
+        });
+        const op = {
+          fecha: infoHoyReal.iso,
+          numeroComprobante: `${rutaActivaId}-${Math.floor(100 + Math.random() * 899)}`,
+          hora: horaActualFormateada,
+          totalVenta,
+          totalCambio,
+          totalPromoValor,
+          neto: totalVenta - totalCambio,
+          metodoPago,
+          itemsVendidos: cantidadesVenta,
+          itemsCambiados: cantidadesCambio,
+          itemsPromocion: cantidadesPromo
+        };
+        setRutasData((prev) => ({
+          ...prev,
+          [rutaActivaId]: prev[rutaActivaId].map((c) =>
+            c.id === clienteActivoId ? { ...c, estado: 'Visitado', ultimaOperacion: op } : c
+          )
+        }));
+        setClienteActivoId(null);
+        mostrarToast('Pedido registrado');
+      };
+
+      const marcarSinCompra = (cid) => {
+        setRutasData((prev) => ({
+          ...prev,
+          [rutaActivaId]: prev[rutaActivaId].map((c) => (c.id === cid ? { ...c, estado: 'Sin Compra' } : c))
+        }));
+        mostrarToast('Marcado Sin Compra');
+      };
+
+      const compartirBoletaWhatsApp = (cli) => {
+        const op = cli.ultimaOperacion;
+        if (!op) return;
+        const msg = `*BUENDÍA PAN — Comprobante #${op.numeroComprobante}*\nComercio: ${cli.nombre}\nTotal Neto: *${formatARS(op.neto)}* (${op.metodoPago})`;
+        const tel = (cli.telefono || '').replace(/\D/g, '');
+        window.open(`https://wa.me/${tel ? `549${tel}` : ''}?text=${encodeURIComponent(msg)}`, '_blank');
+      };
+
+      const abrirAltaClienteModal = () => {
+        setNuevoCliNombre('');
+        setNuevoCliDireccion('');
+        setNuevoCliLocalidad('');
+        setNuevoCliTelefono('');
+        setNuevoCliLat(null);
+        setNuevoCliLng(null);
+        setMostrarAltaCliente(true);
+      };
+
+      const capturarGpsParaNuevoCliente = () => {
+        if (!navigator.geolocation) return;
+        setCapturandoGpsNuevo(true);
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            setNuevoCliLat(Number(pos.coords.latitude.toFixed(6)));
+            setNuevoCliLng(Number(pos.coords.longitude.toFixed(6)));
+            setCapturandoGpsNuevo(false);
+          },
+          () => setCapturandoGpsNuevo(false)
+        );
+      };
+
+      const guardarNuevoCliente = (e) => {
+        e.preventDefault();
+        const nuevo = {
+          id: `${rutaActivaId}-N-${Date.now().toString().slice(-3)}`,
+          orden: clientesRuta.length + 1,
+          nombre: nuevoCliNombre.toUpperCase(),
+          direccion: nuevoCliDireccion,
+          localidad: nuevoCliLocalidad || 'TUCUMÁN',
+          telefono: nuevoCliTelefono,
+          lat: nuevoCliLat,
+          lng: nuevoCliLng,
+          horario: { tipo: 'cortado', mananaIni: '08:00', mananaFin: '13:00', tardeIni: '17:00', tardeFin: '21:00' },
+          estado: 'Pendiente',
+          ultimaOperacion: null,
+          historialPrevio: [],
+          esNuevo: true
+        };
+        setRutasData((prev) => ({
+          ...prev,
+          [rutaActivaId]: [nuevo, ...(prev[rutaActivaId] || [])]
+        }));
+        setMostrarAltaCliente(false);
+        mostrarToast('Cliente nuevo agregado');
+      };
+
+      // ============================================================================
+      // 1. PANTALLA DE LOGIN
+      // ============================================================================
+      if (!usuarioLogueado) {
+        return (
+          <div className="min-h-screen bg-[#1E1B18] flex items-center justify-center p-4">
+            <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl">
+              <div className="bg-gradient-to-br from-[#E11D2E] to-[#990B1E] p-6 text-white">
+                <LogoBuendiaPan />
+                <h1 className="text-lg font-black mt-3">Acceso al Sistema Comercial</h1>
+              </div>
+              <form onSubmit={manejarSubmitLogin} className="p-6 space-y-4 text-xs">
+                {loginError && <div className="p-3 rounded-xl bg-rose-50 text-rose-800 font-bold">{loginError}</div>}
+                <div>
+                  <label className="font-extrabold text-stone-600 block mb-1">Usuario</label>
+                  <input type="text" required value={loginUser} onChange={(e) => setLoginUser(e.target.value)} placeholder="Ej: direccion o vendedor.a" className="w-full px-3.5 py-2.5 bg-[#FFF8F0] border rounded-xl font-bold" />
+                </div>
+                <div>
+                  <label className="font-extrabold text-stone-600 block mb-1">Contraseña</label>
+                  <input type="password" required value={loginPass} onChange={(e) => setLoginPass(e.target.value)} placeholder="•••" className="w-full px-3.5 py-2.5 bg-[#FFF8F0] border rounded-xl font-bold" />
+                </div>
+                <button type="submit" className="w-full py-3 rounded-2xl bg-[#E11D2E] text-white font-black text-sm">Ingresar</button>
+                <div className="pt-2 border-t space-y-1.5">
+                  <span className="text-[10px] font-extrabold text-stone-400 uppercase block">Acceso rápido (clave 123):</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {usuariosSistema.filter((u) => u.activo).map((u) => (
+                      <button key={u.id} type="button" onClick={() => iniciarSesion(u)} className="px-2.5 py-1.5 rounded-xl bg-[#FFF8F0] hover:bg-amber-100 border border-amber-900/15 font-extrabold text-[11px]">
+                        {u.usuario}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        );
+      }
+
+      // ============================================================================
+      // 2. ENTORNO DE ESCRITORIO (TABLERO DE CONTROL)
+      // ============================================================================
+      if (!esVendedor && vistaEntorno === 'escritorio') {
+        return (
+          <div className="min-h-screen bg-[#FFFBF7] text-[#1E1B18]">
+            <header className="bg-gradient-to-r from-[#E11D2E] via-[#C8102E] to-[#990B1E] text-white px-6 py-3.5 shadow-md sticky top-0 z-30">
+              <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+                <LogoBuendiaPan />
+                <div className="flex flex-wrap items-center gap-2">
+                  <button type="button" onClick={limpiarBaseACero} className="px-3 py-2 rounded-xl bg-black/25 hover:bg-black/40 text-rose-200 text-xs font-extrabold flex items-center gap-1.5 border border-white/15">
+                    <span>Limpiar a $ 0</span>
+                  </button>
+                  <button type="button" onClick={() => setMostrarImportadorExcel(true)} className="px-3 py-2 rounded-xl bg-amber-300 text-[#1E1B18] text-xs font-black flex items-center gap-1.5 shadow-xs">
+                    <span>Importar Excel Diario</span>
+                  </button>
+                  <button type="button" onClick={exportarDatosExcelBI} className="px-3 py-2 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-extrabold flex items-center gap-1.5">
+                    <Icon name="download" className="w-3.5 h-3.5" />
+                    <span>Exportar Excel / BI</span>
+                  </button>
+                  <button type="button" onClick={() => setVistaEntorno('movil')} className="px-3 py-2 rounded-xl bg-black/25 hover:bg-black/40 text-amber-300 text-xs font-extrabold flex items-center gap-1.5">
+                    <Icon name="smartphone" className="w-3.5 h-3.5" />
+                    <span>Vista Celular</span>
+                  </button>
+                  <button type="button" onClick={cerrarSesion} className="px-3 py-2 rounded-xl bg-black/30 hover:bg-black/45 text-white text-xs font-bold">
+                    Salir
+                  </button>
+                </div>
+              </div>
+            </header>
+
+            {toastMsg && (
+              <div className="fixed bottom-5 right-5 z-50 px-4 py-3 rounded-2xl shadow-xl text-xs font-extrabold text-white bg-emerald-700">
+                {toastMsg.texto}
+              </div>
+            )}
+
+            <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+              <div className="bg-white rounded-3xl p-4 sm:p-5 border border-amber-900/10 shadow-xs space-y-3.5">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h1 className="text-lg font-black text-[#1E1B18]">Tablero de Control Comercial — Buendía Pan</h1>
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1E1B18] text-amber-300 text-xs font-black shadow-xs">
+                        <Icon name="clock" className="w-3.5 h-3.5" />
+                        <span>HOY: {infoHoyReal.nombreDia} {infoHoyReal.completaAnio} • {horaActualFormateada} hs</span>
+                      </span>
+                    </div>
+                    <p className="text-xs text-stone-500 mt-1">
+                      Visualizando jornada:{' '}
+                      <strong className="text-[#E11D2E]">
+                        {infoDiaSeleccionado.nombreDia} {infoDiaSeleccionado.completaAnio}
+                      </strong>
+                      {infoDiaSeleccionado.esHoy && (
+                        <span className="ml-1.5 px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-extrabold text-[11px]">
+                          ● EN VIVO ({horaActualFormateada} hs)
+                        </span>
+                      )}
+                      {infoDiaSeleccionado.esAyer && (
+                        <span className="ml-1.5 px-2 py-0.5 rounded-md bg-blue-100 text-blue-800 font-extrabold text-[11px]">
+                          Jornada de Ayer (Cerrada)
+                        </span>
+                      )}
+                      {!infoDiaSeleccionado.esHoy && !infoDiaSeleccionado.esAyer && (
+                        <span className="ml-1.5 px-2 py-0.5 rounded-md bg-amber-100 text-amber-900 font-extrabold text-[11px]">
+                          {infoDiaSeleccionado.esSemanaAnterior ? 'Semana Anterior (Cerrada)' : 'Jornada Pasada (Cerrada)'}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-1 bg-[#FFF8F0] p-1 rounded-2xl border border-amber-900/10">
+                    {[{ id: 'TODOS', label: 'Toda la Flota' }, { id: 'A', label: 'Vendedor A' }, { id: 'B', label: 'Vendedor B' }, { id: 'C', label: 'Vendedor C' }].map((f) => (
+                      <button key={f.id} type="button" onClick={() => setFiltroVendedorAdmin(f.id)} className={`px-2.5 py-1.5 rounded-xl text-xs font-extrabold transition ${filtroVendedorAdmin === f.id ? 'bg-[#E11D2E] text-white shadow-xs' : 'text-stone-600 hover:bg-amber-100/60'}`}>
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Selector de Días con Fecha Exacta y Aclaración de Semana */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 pt-1">
+                  {calendarioDiasHabiles.map((dInfo) => {
+                    const activo = diaActivo === dInfo.nombreDia;
+                    return (
+                      <button
+                        key={dInfo.nombreDia}
+                        type="button"
+                        onClick={() => setDiaActivo(dInfo.nombreDia)}
+                        className={`px-3 py-2 rounded-2xl text-left border transition flex flex-col justify-between ${
+                          activo
+                            ? 'bg-[#1E1B18] text-white border-[#1E1B18] shadow-sm'
+                            : 'bg-[#FFF8F0] text-stone-700 border-amber-900/15 hover:bg-amber-100/70'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-1">
+                          <span className={`text-xs font-black ${activo ? 'text-amber-300' : 'text-[#1E1B18]'}`}>
+                            {dInfo.nombreDia} {dInfo.corta}
+                          </span>
+                          {dInfo.esHoy && (
+                            <span className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase ${activo ? 'bg-[#E11D2E] text-white' : 'bg-emerald-600 text-white'}`}>
+                              HOY
+                            </span>
+                          )}
+                          {dInfo.esAyer && (
+                            <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded uppercase ${activo ? 'bg-white/15 text-amber-200' : 'bg-blue-100 text-blue-800'}`}>
+                              AYER
+                            </span>
+                          )}
+                        </div>
+                        <span className={`text-[10px] font-semibold mt-0.5 block ${activo ? 'text-stone-300' : 'text-stone-500'}`}>
+                          {dInfo.esHoy
+                            ? `En curso • ${horaActualFormateada} hs`
+                            : dInfo.esSemanaAnterior
+                            ? `${dInfo.completa} (Sem. ant.)`
+                            : `${dInfo.completa}`}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Resultados por Vendedor */}
+              <section className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-black uppercase tracking-wider text-stone-700 flex items-center gap-2">
+                    <Icon name="truck" className="w-4 h-4 text-[#E11D2E]" />
+                    <span>
+                      Resultados por Vendedor — {infoDiaSeleccionado.nombreDia} {infoDiaSeleccionado.completaAnio}
+                      {infoDiaSeleccionado.esHoy ? ` (${horaActualFormateada} hs)` : ''}
+                    </span>
+                  </h2>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                  {resumenPorVendedorEscritorio.filter((v) => filtroVendedorAdmin === 'TODOS' || v.vendedorId === filtroVendedorAdmin).map((v) => (
+                    <div key={v.vendedorId} className="bg-white rounded-3xl border border-amber-900/15 shadow-xs overflow-hidden flex flex-col justify-between">
+                      <div className="p-5 space-y-4">
+                        <div className="flex items-start justify-between gap-2">
+                          <div>
+                            <span className="text-[10px] uppercase font-extrabold text-[#E11D2E] bg-red-50 border border-red-200 px-2 py-0.5 rounded-full">
+                              {v.vehiculo} • {v.zonaMacro}
+                            </span>
+                            <h3 className="text-base font-black text-[#1E1B18] mt-1">{v.nombre}</h3>
+                            <p className="text-xs font-bold text-stone-500">{v.rutaId ? `${v.rutaId} — ${v.nombreRuta}` : v.nombreRuta}</p>
+                          </div>
+                          {v.objetivo > 0 ? (
+                            <span className={`px-2.5 py-1 rounded-xl text-[11px] font-black shrink-0 ${v.objetivoCumplido ? 'bg-emerald-100 text-emerald-800 border border-emerald-300' : 'bg-amber-100 text-amber-900 border border-amber-300'}`}>
+                              {v.objetivoCumplido ? '✅ Cumplió Meta' : '⏳ En Curso'}
+                            </span>
+                          ) : (
+                            <span className="px-2.5 py-1 rounded-xl text-[11px] font-bold bg-stone-100 text-stone-600 shrink-0">Día Libre</span>
+                          )}
+                        </div>
+
+                        <div className="bg-[#FFF8F0] p-3 rounded-2xl border border-amber-900/10 space-y-1.5">
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="font-extrabold text-stone-700">Cumplimiento de Ruta</span>
+                            <span className="font-black text-[#1E1B18]">{v.visitados} / {v.totalClientes} comercios ({v.cumplimientoRutaPct}%)</span>
+                          </div>
+                          <div className="w-full h-2 bg-amber-900/10 rounded-full overflow-hidden">
+                            <div className="h-full bg-blue-600 rounded-full" style={{ width: `${Math.min(100, v.cumplimientoRutaPct)}%` }} />
+                          </div>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <div className="flex justify-between items-baseline">
+                            <span className="text-xs font-extrabold text-stone-600">Facturación Neta</span>
+                            <span className="text-xl font-black text-[#1E1B18]">{formatARS(v.facturacionNeta)}</span>
+                          </div>
+                          {v.objetivo > 0 ? (
+                            <>
+                              <div className="flex justify-between items-center text-[11px] font-bold text-stone-500">
+                                <span>Objetivo {diaActivo}: {formatARS(v.objetivo)}</span>
+                                <span className="font-black text-[#E11D2E]">{v.cumplimientoObjPct}%</span>
+                              </div>
+                              <div className="w-full h-2.5 bg-stone-100 rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full ${v.objetivoCumplido ? 'bg-emerald-500' : 'bg-[#E11D2E]'}`} style={{ width: `${Math.min(100, v.cumplimientoObjPct)}%` }} />
+                              </div>
+                              <div className={`text-xs font-extrabold px-3 py-2 rounded-xl border mt-1 ${v.objetivoCumplido ? 'bg-emerald-50 border-emerald-300 text-emerald-900' : 'bg-amber-50 border-amber-300 text-amber-950'}`}>
+                                {v.objetivoCumplido ? (
+                                  <span>🎯 ¡Objetivo cumplido! Superó por <strong>+{formatARS(v.superadoObjetivo)}</strong></span>
+                                ) : (
+                                  <span>📊 Le faltan <strong>{formatARS(v.faltaObjetivo)}</strong> para cumplir el objetivo</span>
+                                )}
+                              </div>
+                            </>
+                          ) : (
+                            <div className="text-xs text-stone-500 bg-stone-50 px-3 py-2 rounded-xl border border-stone-200">Sin objetivo fijo para {diaActivo}.</div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="bg-stone-900 text-white px-5 py-3.5 border-t border-stone-800 space-y-2">
+                        <span className="text-[10px] uppercase tracking-wider font-extrabold text-amber-300 block">Detalle Operativo</span>
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="bg-white/5 rounded-xl p-2 border border-white/10">
+                            <span className="text-[10px] text-stone-400 block">Transferencias</span>
+                            <span className="font-black text-sky-300">{formatARS(v.totalTransferencias)}</span>
+                          </div>
+                          <div className="bg-white/5 rounded-xl p-2 border border-white/10">
+                            <span className="text-[10px] text-stone-400 block">Tomó de Cta. Cte.</span>
+                            <span className="font-black text-amber-300">{formatARS(v.totalCtaCte)}</span>
+                          </div>
+                          <div className="bg-white/5 rounded-xl p-2 border border-white/10">
+                            <span className="text-[10px] text-stone-400 block">Promociones</span>
+                            <span className="font-black text-emerald-300">{v.totalPromosUnidades} u. ({formatARS(v.totalPromosMonto)})</span>
+                          </div>
+                          <div className="bg-white/5 rounded-xl p-2 border border-white/10">
+                            <span className="text-[10px] text-stone-400 block">Cambios Garantía</span>
+                            <span className="font-black text-rose-300">{v.totalCambiosUnidades} u. ({formatARS(v.totalCambiosMonto)})</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </section>
+
+              {/* KPIs Globales */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="bg-white rounded-3xl p-5 border border-amber-900/10 shadow-xs">
+                  <span className="text-[11px] uppercase font-extrabold text-stone-400 block">Facturación Neta</span>
+                  <div className="text-2xl font-black text-[#1E1B18] mt-1">{formatARS(metricasGlobalesEmpresa.totalNeta)}</div>
+                  <div className="text-xs text-stone-500 mt-1">Bruta: <strong>{formatARS(metricasGlobalesEmpresa.totalBruta)}</strong> • Mermas: <span className="text-rose-700 font-bold">-{formatARS(metricasGlobalesEmpresa.totalCambios)}</span></div>
+                </div>
+                <div className="bg-white rounded-3xl p-5 border border-amber-900/10 shadow-xs">
+                  <span className="text-[11px] uppercase font-extrabold text-stone-400 block">Cobranza Consolidada</span>
+                  <div className="text-lg font-black text-emerald-700 mt-1">Efectivo: {formatARS(metricasGlobalesEmpresa.totalEfectivo)}</div>
+                  <div className="text-xs text-blue-700 font-bold mt-1">Transf: {formatARS(metricasGlobalesEmpresa.totalTransferencia)} • Cta Cte: {formatARS(metricasGlobalesEmpresa.totalCtaCte)}</div>
+                </div>
+                <div className="bg-white rounded-3xl p-5 border border-amber-900/10 shadow-xs">
+                  <span className="text-[11px] uppercase font-extrabold text-stone-400 block">Cobertura GPS Padrón</span>
+                  <div className="text-2xl font-black text-blue-700 mt-1">{metricasGlobalesEmpresa.totalClientesConGps} / {metricasGlobalesEmpresa.totalClientesActivos} <span className="text-sm font-extrabold text-stone-500">({coberturaGpsPct}%)</span></div>
+                  <div className="w-full h-2 bg-stone-100 rounded-full overflow-hidden mt-2"><div className="h-full bg-blue-600 rounded-full" style={{ width: `${coberturaGpsPct}%` }} /></div>
+                </div>
+                <div className="bg-white rounded-3xl p-5 border border-amber-900/10 shadow-xs">
+                  <span className="text-[11px] uppercase font-extrabold text-stone-400 block">Boletas & Altas</span>
+                  <div className="text-2xl font-black text-[#E11D2E] mt-1">{metricasGlobalesEmpresa.boletasLista.length} Boletas</div>
+                  <div className="text-xs text-emerald-700 font-bold mt-1">+{metricasGlobalesEmpresa.totalClientesNuevos} clientes nuevos en calle</div>
+                </div>
+              </div>
+
+              {/* Pestañas Escritorio */}
+              <div className="flex gap-2 border-b border-stone-200 pb-2 overflow-x-auto">
+                {[
+                  { id: 'clientes_360', label: 'CLIENTES, Cta. Cte. & Historial Ventas', icon: 'users' },
+                  { id: 'resumen', label: 'Rendimiento por Ruta & Ranking Productos', icon: 'barChart' },
+                  { id: 'boletas', label: 'Auditoría de Boletas Emitidas', icon: 'receipt' },
+                  ...(esDireccion ? [{ id: 'usuarios', label: 'Usuarios & Claves (Dirección)', icon: 'lock' }] : [])
+                ].map((t) => (
+                  <button key={t.id} type="button" onClick={() => setTabAdmin(t.id)} className={`px-4 py-2.5 rounded-2xl text-xs font-extrabold flex items-center gap-2 whitespace-nowrap transition ${tabAdmin === t.id ? 'bg-[#1E1B18] text-amber-300 shadow-xs' : 'bg-white text-stone-600 hover:bg-amber-50 border border-stone-200'}`}>
+                    <Icon name={t.icon} className="w-4 h-4" />
+                    <span>{t.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* MÓDULO INTEGRAL CLIENTES 360° */}
+              {tabAdmin === 'clientes_360' && (() => {
+                const diasMapJs = { Lunes: 1, Martes: 2, Miércoles: 3, Jueves: 4, Viernes: 5, Sábado: 6 };
+                const targetDow = diasMapJs[histDiaSemana] ?? 1;
+                const columnasFechas = [];
+                if (histFechaDesde && histFechaHasta && histFechaDesde <= histFechaHasta) {
+                  const [y1, m1, d1] = histFechaDesde.split('-').map(Number);
+                  const [y2, m2, d2] = histFechaHasta.split('-').map(Number);
+                  let cursor = new Date(y1, m1 - 1, d1);
+                  const fin = new Date(y2, m2 - 1, d2);
+                  let guard = 0;
+                  while (cursor <= fin && guard < 120) {
+                    if (cursor.getDay() === targetDow) {
+                      const iso = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+                      const etiquetaCorta = `${String(cursor.getDate()).padStart(2, '0')}/${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+                      columnasFechas.push({ iso, etiquetaCorta });
+                    }
+                    cursor.setDate(cursor.getDate() + 1);
+                    guard += 1;
+                  }
+                }
+
+                const clientesMatriz = rutasData[histRutaId] || [];
+                const matrizFilas = clientesMatriz.map((cli) => {
+                  const porFecha = {};
+                  let totalClienteVenta = 0;
+                  const todasOps = [...(cli.historialPrevio || [])];
+                  if (cli.estado === 'Visitado' && cli.ultimaOperacion) todasOps.push(cli.ultimaOperacion);
+                  todasOps.forEach((op) => {
+                    if (op.fecha) {
+                      if (!porFecha[op.fecha]) porFecha[op.fecha] = { venta: 0, cambios: 0, promo: 0 };
+                      porFecha[op.fecha].venta += op.totalVenta || 0;
+                      porFecha[op.fecha].cambios += op.totalCambio || 0;
+                      porFecha[op.fecha].promo += op.totalPromoValor || 0;
+                    }
+                  });
+                  columnasFechas.forEach((col) => {
+                    if (!porFecha[col.iso]) {
+                      porFecha[col.iso] = { venta: 0, cambios: 0, promo: 0 };
+                    }
+                    totalClienteVenta += porFecha[col.iso].venta;
+                  });
+                  return { cliente: cli, porFecha, totalClienteVenta };
+                });
+
+                const totalesPorFecha = {};
+                let granTotalVenta = 0, granTotalCambios = 0, granTotalPromo = 0;
+                columnasFechas.forEach((col) => {
+                  let sVenta = 0, sCambios = 0, sPromo = 0;
+                  matrizFilas.forEach((fila) => {
+                    const celda = fila.porFecha[col.iso] || { venta: 0, cambios: 0, promo: 0 };
+                    sVenta += celda.venta; sCambios += celda.cambios; sPromo += celda.promo;
+                  });
+                  totalesPorFecha[col.iso] = { venta: sVenta, cambios: sCambios, promo: sPromo };
+                  granTotalVenta += sVenta; granTotalCambios += sCambios; granTotalPromo += sPromo;
+                });
+
+                const exportarMatrizExcel = () => {
+                  const encabezados = ['Cliente_ID', 'Comercio', 'Localidad', ...columnasFechas.map((c) => `${histDiaSemana} ${c.etiquetaCorta}`), 'Total_Acumulado_Cliente'];
+                  const filasCsv = [encabezados];
+                  matrizFilas.forEach((f) => {
+                    filasCsv.push([f.cliente.id, `"${f.cliente.nombre}"`, `"${f.cliente.localidad}"`, ...columnasFechas.map((c) => f.porFecha[c.iso]?.venta || 0), f.totalClienteVenta]);
+                  });
+                  filasCsv.push(['', '"TOTAL VENTA POR FECHA"', '', ...columnasFechas.map((c) => totalesPorFecha[c.iso]?.venta || 0), granTotalVenta]);
+                  const csvStr = '\uFEFF' + filasCsv.map((r) => r.join(';')).join('\n');
+                  const blob = new Blob([csvStr], { type: 'text/csv;charset=utf-8;' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `Historial_${histDiaSemana}_${histRutaId}_${histFechaDesde}_a_${histFechaHasta}.csv`;
+                  document.body.appendChild(a);
+                  a.click();
+                  document.body.removeChild(a);
+                  URL.revokeObjectURL(url);
+                  mostrarToast('Historial matricial descargado para Excel');
+                };
+
+                const rutaFicha360 = cliente360Seleccionado?.rutaId || segRutaId || 'R-5';
+                const listaRutaFicha = rutasData[rutaFicha360] || [];
+                const cliFichaObj = listaRutaFicha.find((c) => c.id === cliente360Seleccionado?.clienteId) || listaRutaFicha[0] || null;
+                const evalFicha360 = cliFichaObj ? evaluarClienteSeguimiento(cliFichaObj) : null;
+                const clasifFicha360 = cliFichaObj ? calcularClasificacionCliente(cliFichaObj) : null;
+
+                return (
+                  <div className="space-y-4">
+                    <div className="bg-white rounded-3xl p-4 border border-amber-900/10 shadow-xs flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex flex-wrap items-center gap-2">
+                        {[
+                          { id: 'padron', label: '1. Padrón & Clasificación (A+ a E)', icon: 'users' },
+                          { id: 'matriz', label: '2. Planilla Historial por Fechas (Matriz)', icon: 'clock' },
+                          { id: 'ficha', label: cliFichaObj ? `3. Ficha Integral: ${cliFichaObj.nombre}` : '3. Ficha Integral del Cliente', icon: 'target' }
+                        ].map((sv) => (
+                          <button key={sv.id} type="button" onClick={() => setSubVistaClientes(sv.id)} className={`px-3.5 py-2 rounded-2xl text-xs font-black flex items-center gap-1.5 transition ${subVistaClientes === sv.id ? 'bg-[#E11D2E] text-white shadow-xs' : 'bg-[#FFF8F0] text-stone-700 hover:bg-amber-100/70 border border-amber-900/10'}`}>
+                            <Icon name={sv.icon} className="w-3.5 h-3.5" />
+                            <span>{sv.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                      <span className="text-[11px] font-bold text-stone-500">💡 Hacé clic en cualquier cliente para abrir su Ficha 360°</span>
+                    </div>
+
+                    {subVistaClientes === 'padron' && (
+                      <div className="bg-white rounded-3xl p-5 border border-amber-900/10 shadow-xs space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <div>
+                            <h2 className="text-base font-black text-[#1E1B18]">Padrón Unificado de Clientes ({padronFiltrado.length} de {padronConClasificacion.length} comercios)</h2>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <div className="relative">
+                              <Icon name="search" className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                              <input type="text" placeholder="Buscar comercio, teléfono o calle..." value={busquedaPadronAdmin} onChange={(e) => setBusquedaPadronAdmin(e.target.value)} className="pl-9 pr-3 py-2 bg-[#FFF8F0] border border-amber-900/20 rounded-xl text-xs font-semibold w-56 focus:outline-none focus:border-[#E11D2E]" />
+                            </div>
+                            <select value={filtroRutaPadronAdmin} onChange={(e) => setFiltroRutaPadronAdmin(e.target.value)} className="px-3 py-2 bg-[#FFF8F0] border border-amber-900/20 rounded-xl text-xs font-bold">
+                              <option value="TODAS">Todas las Rutas</option>
+                              {Object.entries(NOMBRES_RUTAS).map(([rId, rNom]) => <option key={rId} value={rId}>{rId} — {rNom}</option>)}
+                            </select>
+                            <select value={filtroCategoriaPadronAdmin} onChange={(e) => setFiltroCategoriaPadronAdmin(e.target.value)} className="px-3 py-2 bg-[#FFF8F0] border border-amber-900/20 rounded-xl text-xs font-extrabold text-[#E11D2E]">
+                              <option value="TODAS">Categorías (A+ a E)</option>
+                              <option value="A+">A+ (&gt; $200k)</option>
+                              <option value="A">A ($100k - $200k)</option>
+                              <option value="B">B ($50k - $100k)</option>
+                              <option value="C">C ($20k - $50k)</option>
+                              <option value="D">D ($10k - $20k)</option>
+                              <option value="E">E (&lt; $10k)</option>
+                            </select>
+                            <button type="button" onClick={() => setSoloSinGpsAdmin(!soloSinGpsAdmin)} className={`px-3 py-2 rounded-xl text-xs font-extrabold border transition ${soloSinGpsAdmin ? 'bg-amber-500 text-white border-amber-600' : 'bg-white text-stone-700 border-stone-300'}`}>
+                              {soloSinGpsAdmin ? 'Solo Sin GPS' : 'Filtrar Sin GPS'}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="overflow-x-auto max-h-[540px] overflow-y-auto">
+                          <table className="w-full text-left border-collapse text-xs">
+                            <thead className="sticky top-0 bg-white z-10">
+                              <tr className="border-b-2 border-stone-200 text-[11px] uppercase text-stone-500">
+                                <th className="py-3 px-3">Ruta / ID</th>
+                                <th className="py-3 px-3">Comercio & Teléfono</th>
+                                <th className="py-3 px-3">Clasificación</th>
+                                <th className="py-3 px-3">Saldo Cta. Cte.</th>
+                                <th className="py-3 px-3">Dirección y Horario</th>
+                                <th className="py-3 px-3">GPS</th>
+                                <th className="py-3 px-3 text-right">Acciones</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-stone-100">
+                              {padronFiltrado.map((cli) => {
+                                const tieneGps = cli.lat !== null && cli.lng !== null;
+                                return (
+                                  <tr key={cli.id} className="hover:bg-[#FFF8F0] transition">
+                                    <td className="py-3 px-3 font-extrabold text-[#E11D2E] whitespace-nowrap">{cli.id}</td>
+                                    <td className="py-3 px-3">
+                                      <button type="button" onClick={() => abrirFicha360Cliente(cli.rutaId, cli.id)} className="text-left group">
+                                        <div className="font-black text-[#1E1B18] group-hover:text-[#E11D2E] underline decoration-dotted">{cli.nombre} →</div>
+                                        <div className="text-[11px] font-bold text-emerald-700 mt-0.5">📱 {cli.telefono || <span className="text-stone-400 font-normal">Sin teléfono</span>}</div>
+                                      </button>
+                                    </td>
+                                    <td className="py-3 px-3 whitespace-nowrap">
+                                      <span className={`inline-block px-2.5 py-0.5 rounded-xl border text-[11px] font-black ${cli.clasificacion.badgeClass}`}>Tipo {cli.clasificacion.codigo}</span>
+                                      <div className="text-[10px] text-stone-500 mt-0.5">Prom: {formatARS(cli.clasificacion.promedioVisita)}</div>
+                                    </td>
+                                    <td className="py-3 px-3 whitespace-nowrap">
+                                      {cli.saldoCtaCteActual > 0 ? <span className="font-black text-[#E11D2E] bg-red-50 border border-red-200 px-2 py-1 rounded-xl">{formatARS(cli.saldoCtaCteActual)}</span> : <span className="text-stone-400 font-semibold">$ 0</span>}
+                                    </td>
+                                    <td className="py-3 px-3 text-stone-600">
+                                      <div>{cli.direccion} • <strong>{cli.localidad}</strong></div>
+                                      <div className="text-[10px] text-stone-400">{formatearHorarioTexto(cli.horario)}</div>
+                                    </td>
+                                    <td className="py-3 px-3 whitespace-nowrap">
+                                      {tieneGps ? <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 font-extrabold text-[10px]">GPS OK</span> : <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-800 border border-amber-200 font-extrabold text-[10px]">Sin GPS</span>}
+                                    </td>
+                                    <td className="py-3 px-3 text-right whitespace-nowrap space-x-1">
+                                      <button type="button" onClick={() => abrirFicha360Cliente(cli.rutaId, cli.id)} className="px-2.5 py-1.5 rounded-xl bg-stone-900 text-amber-300 font-extrabold text-[11px]">Ficha 360°</button>
+                                      <button type="button" onClick={() => { setClienteWaModal(cli); setTipoMensajeWa('lista_precios'); }} className="px-2.5 py-1.5 rounded-xl bg-emerald-600 text-white font-extrabold text-[11px]">WA</button>
+                                      <button type="button" onClick={() => abrirModalGeorreferencia(cli, cli.rutaId)} className="px-2.5 py-1.5 rounded-xl bg-blue-600 text-white font-extrabold text-[11px]">Editar</button>
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    )}
+
+                    {subVistaClientes === 'matriz' && (
+                      <div className="bg-white rounded-3xl p-5 border border-amber-900/10 shadow-xs space-y-4">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                          <h2 className="text-base font-black text-[#1E1B18]">Historial de Ventas por Día, Ruta y Fechas</h2>
+                          <button type="button" onClick={exportarMatrizExcel} className="px-3.5 py-2 rounded-xl bg-emerald-600 text-white text-xs font-extrabold flex items-center gap-1.5">
+                            <Icon name="download" className="w-4 h-4" />
+                            <span>Exportar Tabla a Excel</span>
+                          </button>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 bg-[#FFF8F0] p-3.5 rounded-2xl border border-amber-900/15 text-xs">
+                          <div>
+                            <label className="text-[10px] uppercase font-extrabold text-stone-500 block mb-1">1. Día de la Semana</label>
+                            <select value={histDiaSemana} onChange={(e) => setHistDiaSemana(e.target.value)} className="w-full px-3 py-2 bg-white border border-amber-900/20 rounded-xl font-black text-[#E11D2E]">
+                              {DIAS_SEMANA.map((d) => <option key={d} value={d}>{d}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[10px] uppercase font-extrabold text-stone-500 block mb-1">2. Ruta Comercial</label>
+                            <select value={histRutaId} onChange={(e) => setHistRutaId(e.target.value)} className="w-full px-3 py-2 bg-white border border-amber-900/20 rounded-xl font-extrabold">
+                              {Object.entries(NOMBRES_RUTAS).map(([rId, rNom]) => <option key={rId} value={rId}>{rId} — {rNom}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <label className="text-[10px] uppercase font-extrabold text-stone-500 block mb-1">3. Fecha Inicio</label>
+                            <input type="date" value={histFechaDesde} onChange={(e) => setHistFechaDesde(e.target.value)} className="w-full px-3 py-2 bg-white border border-amber-900/20 rounded-xl font-bold" />
+                          </div>
+                          <div>
+                            <label className="text-[10px] uppercase font-extrabold text-stone-500 block mb-1">4. Fecha Fin</label>
+                            <input type="date" value={histFechaHasta} onChange={(e) => setHistFechaHasta(e.target.value)} className="w-full px-3 py-2 bg-white border border-amber-900/20 rounded-xl font-bold" />
+                          </div>
+                        </div>
+
+                        {columnasFechas.length > 0 && (
+                          <div className="overflow-x-auto border border-stone-200 rounded-2xl">
+                            <table className="w-full text-left border-collapse text-xs">
+                              <thead>
+                                <tr className="bg-[#1E1B18] text-white text-[11px] uppercase">
+                                  <th className="py-3 px-3.5 sticky left-0 z-20 bg-[#1E1B18] min-w-[230px] border-r border-stone-700">Cliente ({NOMBRES_RUTAS[histRutaId]})</th>
+                                  {columnasFechas.map((col) => (
+                                    <th key={col.iso} className="py-3 px-3 text-right min-w-[120px] border-r border-stone-800 whitespace-nowrap">
+                                      <span className="text-amber-300 block text-[10px]">{histDiaSemana}</span>
+                                      <span>{col.etiquetaCorta}</span>
+                                    </th>
+                                  ))}
+                                  <th className="py-3 px-3.5 text-right bg-stone-900 text-amber-300 min-w-[130px] whitespace-nowrap">Total Cliente</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-stone-100">
+                                {matrizFilas.map((fila) => (
+                                  <tr key={fila.cliente.id} className="hover:bg-[#FFF8F0]">
+                                    <td className="py-2.5 px-3.5 sticky left-0 z-10 bg-white border-r border-stone-200">
+                                      <button type="button" onClick={() => abrirFicha360Cliente(histRutaId, fila.cliente.id)} className="text-left group">
+                                        <div className="font-black text-[#1E1B18] group-hover:text-[#E11D2E] underline decoration-dotted">{fila.cliente.nombre} →</div>
+                                        <div className="text-[10px] text-stone-400">{fila.cliente.id}</div>
+                                      </button>
+                                    </td>
+                                    {columnasFechas.map((col) => {
+                                      const dato = fila.porFecha[col.iso] || { venta: 0 };
+                                      return (
+                                        <td key={col.iso} className="py-2.5 px-3 text-right border-r border-stone-100 whitespace-nowrap">
+                                          {dato.venta > 0 ? <span className="font-extrabold">{formatARS(dato.venta)}</span> : <span className="text-stone-300">—</span>}
+                                        </td>
+                                      );
+                                    })}
+                                    <td className="py-2.5 px-3.5 text-right font-black text-emerald-800 bg-emerald-50/40 whitespace-nowrap">{formatARS(fila.totalClienteVenta)}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                              <tfoot>
+                                <tr className="bg-emerald-950 text-white font-black border-t-2 border-stone-300">
+                                  <td className="py-3 px-3.5 sticky left-0 z-10 bg-emerald-950 border-r border-emerald-800 uppercase text-[11px]">Total Venta por Fecha ($)</td>
+                                  {columnasFechas.map((col) => <td key={col.iso} className="py-3 px-3 text-right text-emerald-300 border-r border-emerald-900 whitespace-nowrap">{formatARS(totalesPorFecha[col.iso]?.venta || 0)}</td>)}
+                                  <td className="py-3 px-3.5 text-right text-amber-300 bg-emerald-900 whitespace-nowrap">{formatARS(granTotalVenta)}</td>
+                                </tr>
+                                <tr className="bg-rose-950 text-white font-extrabold">
+                                  <td className="py-2.5 px-3.5 sticky left-0 z-10 bg-rose-950 border-r border-rose-800 uppercase text-[11px]">Total Cambios Garantía ($)</td>
+                                  {columnasFechas.map((col) => <td key={col.iso} className="py-2.5 px-3 text-right text-rose-300 border-r border-rose-900 whitespace-nowrap">{formatARS(totalesPorFecha[col.iso]?.cambios || 0)}</td>)}
+                                  <td className="py-2.5 px-3.5 text-right text-rose-200 bg-rose-900 whitespace-nowrap">{formatARS(granTotalCambios)}</td>
+                                </tr>
+                                <tr className="bg-amber-950 text-white font-extrabold">
+                                  <td className="py-2.5 px-3.5 sticky left-0 z-10 bg-amber-950 border-r border-amber-800 uppercase text-[11px]">Total Promociones ($)</td>
+                                  {columnasFechas.map((col) => <td key={col.iso} className="py-2.5 px-3 text-right text-amber-300 border-r border-amber-900 whitespace-nowrap">{formatARS(totalesPorFecha[col.iso]?.promo || 0)}</td>)}
+                                  <td className="py-2.5 px-3.5 text-right text-amber-200 bg-amber-900 whitespace-nowrap">{formatARS(granTotalPromo)}</td>
+                                </tr>
+                              </tfoot>
+                            </table>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {subVistaClientes === 'ficha' && cliFichaObj && evalFicha360 && (
+                      <div className="bg-white rounded-3xl p-5 border border-amber-900/15 shadow-xs space-y-4">
+                        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-stone-100 pb-4">
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <button type="button" onClick={() => setSubVistaClientes('padron')} className="px-2.5 py-1 rounded-xl bg-stone-100 text-stone-700 text-xs font-extrabold">← Volver al Padrón</button>
+                              <span className="text-xs font-black text-[#E11D2E] bg-red-50 border border-red-200 px-2.5 py-0.5 rounded-full">{cliFichaObj.id} • {NOMBRES_RUTAS[rutaFicha360]}</span>
+                              {clasifFicha360 && <span className={`px-2.5 py-0.5 rounded-full border text-xs font-black ${clasifFicha360.badgeClass}`}>{clasifFicha360.etiqueta}</span>}
+                            </div>
+                            <h2 className="text-xl font-black text-[#1E1B18] pt-1">{cliFichaObj.nombre}</h2>
+                            <div className="flex flex-wrap items-center gap-4 text-xs text-stone-600">
+                              <span>📍 <strong>{cliFichaObj.direccion}</strong> ({cliFichaObj.localidad})</span>
+                              <span>📱 Teléfono: <strong className="text-emerald-800">{cliFichaObj.telefono || 'Sin registrar'}</strong></span>
+                              <span>🕒 Horario: <strong>{formatearHorarioTexto(cliFichaObj.horario)}</strong></span>
+                            </div>
+                          </div>
+                          <div className="flex flex-wrap items-center gap-2">
+                            <button type="button" onClick={() => abrirModalGeorreferencia(cliFichaObj, rutaFicha360)} className="px-3 py-2 rounded-xl bg-blue-600 text-white text-xs font-extrabold">Editar Datos / GPS</button>
+                            <button type="button" onClick={() => { setClienteWaModal(cliFichaObj); setTipoMensajeWa('lista_precios'); }} className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-extrabold">WhatsApp</button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                          <div className="bg-[#FFF8F0] p-3.5 rounded-2xl border border-amber-900/15">
+                            <span className="text-[10px] uppercase font-extrabold text-stone-500 block">Total Comprado</span>
+                            <span className="text-lg font-black text-[#1E1B18]">{formatARS(evalFicha360.totalComprado)}</span>
+                          </div>
+                          <div className="bg-rose-50 p-3.5 rounded-2xl border border-rose-200">
+                            <span className="text-[10px] uppercase font-extrabold text-rose-700 block">Relación Compra / Cambios</span>
+                            <span className="text-lg font-black text-rose-900">{evalFicha360.ratioCambiosUnidPct}%</span>
+                          </div>
+                          <div className="bg-emerald-50 p-3.5 rounded-2xl border border-emerald-200">
+                            <span className="text-[10px] uppercase font-extrabold text-emerald-700 block">Operaciones Período</span>
+                            <span className="text-lg font-black text-emerald-950">{evalFicha360.opsFiltradas.length} boletas</span>
+                          </div>
+                          <div className="bg-amber-50 p-3.5 rounded-2xl border border-amber-300 flex flex-col justify-between">
+                            <div>
+                              <span className="text-[10px] uppercase font-extrabold text-amber-900 block">Saldo Cuenta Corriente</span>
+                              <span className="text-xl font-black text-[#E11D2E]">{formatARS(evalFicha360.saldoPendiente)}</span>
+                            </div>
+                            <button type="button" onClick={() => enviarEstadoCtaCteWhatsApp(cliFichaObj, evalFicha360)} className="mt-2 w-full py-1.5 rounded-xl bg-emerald-600 text-white font-black text-[11px]">Cobrar Saldo WA</button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          <div className="bg-stone-50 p-4 rounded-2xl border border-stone-200 space-y-2">
+                            <h4 className="text-xs font-black uppercase text-stone-700">Productos Más Comprados</h4>
+                            {Object.entries(evalFicha360.prodCompras).sort((a, b) => b[1] - a[1]).map(([pid, qty]) => {
+                              const p = CATALOGO_PRODUCTOS.find((x) => x.id === pid);
+                              return (
+                                <div key={pid} className="flex justify-between items-center bg-white p-2.5 rounded-xl border border-stone-200 text-xs">
+                                  <span className="font-bold">{p ? p.nombre : pid}</span>
+                                  <span className="font-black text-[#E11D2E]">{qty} unid.</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <div className="bg-stone-50 p-4 rounded-2xl border border-stone-200 space-y-2">
+                            <h4 className="text-xs font-black uppercase text-stone-700">Historial por Fecha</h4>
+                            {evalFicha360.opsFiltradas.map((op, idxOp) => (
+                              <div key={idxOp} className="bg-white p-3 rounded-xl border border-stone-200 text-xs space-y-1">
+                                <div className="flex justify-between font-black">
+                                  <span>📅 {op.fecha} • #{op.numeroComprobante}</span>
+                                  <span className="text-emerald-800">{formatARS(op.neto)}</span>
+                                </div>
+                                <div className="text-[11px] text-stone-600">Pago: <strong>{op.metodoPago}</strong> • Venta: {formatARS(op.totalVenta)} • Cambios: -{formatARS(op.totalCambio)}</div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {tabAdmin === 'resumen' && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                  <div className="bg-white rounded-3xl p-5 border border-amber-900/10 shadow-xs space-y-3">
+                    <h3 className="text-sm font-black text-[#1E1B18]">Desempeño por Ruta Comercial</h3>
+                    <div className="space-y-2.5">
+                      {metricasGlobalesEmpresa.resumenRutas.map((r) => (
+                        <div key={r.rutaId} className="p-3.5 rounded-2xl bg-[#FFF8F0] border border-amber-900/10">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-xs font-black text-[#1E1B18]"><span className="text-[#E11D2E]">{r.rutaId}</span> • {r.nombreRuta}</span>
+                            <span className="text-xs font-black text-emerald-800">{formatARS(r.ventaNeta)}</span>
+                          </div>
+                          <div className="text-[11px] text-stone-500">Visitados: <strong>{r.visitados}</strong> de {r.clientesCount}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="bg-white rounded-3xl p-5 border border-amber-900/10 shadow-xs space-y-3">
+                    <h3 className="text-sm font-black text-[#1E1B18]">Ranking de Productos Más Vendidos</h3>
+                    <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
+                      {metricasGlobalesEmpresa.rankingProductos.map((p) => (
+                        <div key={p.id} className="flex items-center justify-between p-2.5 rounded-xl bg-stone-50 border border-stone-100 text-xs">
+                          <div>
+                            <span className="font-black text-[#1E1B18] block">{p.nombre}</span>
+                            <span className="text-[10px] text-stone-500">Vendidos: <strong>{p.vendidos} u.</strong></span>
+                          </div>
+                          <span className="font-black text-[#E11D2E]">{formatARS(p.ingresos)}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {tabAdmin === 'boletas' && (
+                <div className="bg-white rounded-3xl p-5 border border-amber-900/10 shadow-xs space-y-3">
+                  <h3 className="text-sm font-black text-[#1E1B18]">Comprobantes Emitidos ({metricasGlobalesEmpresa.boletasLista.length})</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {metricasGlobalesEmpresa.boletasLista.map((cli) => (
+                      <button key={cli.id} type="button" onClick={() => setBoletaSeleccionada(cli)} className="text-left p-4 rounded-2xl bg-[#FFF8F0] hover:bg-amber-100/70 border border-amber-900/15 transition">
+                        <div className="flex justify-between items-center mb-1">
+                          <span className="text-[10px] font-extrabold text-[#E11D2E]">#{cli.ultimaOperacion.numeroComprobante} • {cli.rutaId}</span>
+                          <span className="text-[10px] font-bold bg-white px-2 py-0.5 rounded-full border border-stone-200">{cli.ultimaOperacion.metodoPago}</span>
+                        </div>
+                        <div className="text-xs font-black text-[#1E1B18] truncate">{cli.nombre}</div>
+                        <div className="text-sm font-black text-emerald-800 mt-1">{formatARS(cli.ultimaOperacion.neto)}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {tabAdmin === 'usuarios' && esDireccion && (
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  <form onSubmit={crearUsuarioSistema} className="bg-white rounded-3xl p-5 border border-amber-900/10 shadow-xs space-y-3 text-xs">
+                    <h3 className="text-sm font-black text-[#1E1B18]">Crear Nuevo Usuario</h3>
+                    <input type="text" required placeholder="Nombre Completo" value={nuevoUserNombre} onChange={(e) => setNuevoUserNombre(e.target.value)} className="w-full px-3 py-2 bg-[#FFF8F0] border border-amber-900/20 rounded-xl font-bold" />
+                    <div className="grid grid-cols-2 gap-2">
+                      <input type="text" required placeholder="Usuario Login" value={nuevoUserUsuario} onChange={(e) => setNuevoUserUsuario(e.target.value)} className="w-full px-3 py-2 bg-[#FFF8F0] border border-amber-900/20 rounded-xl font-bold" />
+                      <input type="text" required placeholder="Contraseña" value={nuevoUserPass} onChange={(e) => setNuevoUserPass(e.target.value)} className="w-full px-3 py-2 bg-[#FFF8F0] border border-amber-900/20 rounded-xl font-bold" />
+                    </div>
+                    <select value={nuevoUserRol} onChange={(e) => setNuevoUserRol(e.target.value)} className="w-full px-3 py-2 bg-[#FFF8F0] border border-amber-900/20 rounded-xl font-bold">
+                      <option value="vendedor">Vendedor de Ruta</option>
+                      <option value="administracion">Sector Administración</option>
+                      <option value="jefe_ventas">Jefe de Ventas</option>
+                      <option value="gerencia_ventas">Gerencia de Ventas</option>
+                      <option value="direccion">Dirección de la Empresa</option>
+                    </select>
+                    {nuevoUserRol === 'vendedor' && (
+                      <select value={nuevoUserVend} onChange={(e) => setNuevoUserVend(e.target.value)} className="w-full px-3 py-2 bg-[#FFF8F0] border border-amber-900/20 rounded-xl font-bold">
+                        <option value="A">Vendedor A</option>
+                        <option value="B">Vendedor B</option>
+                        <option value="C">Vendedor C</option>
+                      </select>
+                    )}
+                    <button type="submit" className="w-full py-2.5 rounded-xl bg-[#E11D2E] text-white font-black">Guardar Usuario</button>
+                  </form>
+                  <div className="lg:col-span-2 bg-white rounded-3xl p-5 border border-amber-900/10 shadow-xs space-y-2 text-xs">
+                    <h3 className="text-sm font-black text-[#1E1B18]">Usuarios Activos</h3>
+                    {usuariosSistema.map((u) => (
+                      <div key={u.id} className="p-3 rounded-2xl bg-[#FFF8F0] border border-amber-900/10 flex items-center justify-between gap-2">
+                        <div>
+                          <div className="font-black">{u.nombreCompleto}</div>
+                          <div className="text-[11px] text-stone-500">Usuario: <strong>{u.usuario}</strong> • Clave: <strong>{u.password}</strong> • {u.etiquetaRol}</div>
+                        </div>
+                        <button type="button" onClick={() => alternarEstadoUsuario(u.id)} className={`px-3 py-1.5 rounded-xl font-extrabold text-[11px] ${u.activo ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
+                          {u.activo ? 'Activo' : 'Suspendido'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </main>
+
+            {/* Modal Edición Integral Cliente */}
+            {clienteGeoEdit && (
+              <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
+                <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl max-h-[92vh] flex flex-col">
+                  <div className="bg-blue-700 text-white p-4 shrink-0">
+                    <span className="text-[10px] uppercase font-extrabold bg-black/20 px-2.5 py-0.5 rounded-full">Editar Ficha • {clienteGeoEdit.id}</span>
+                    <h3 className="text-base font-black mt-1">{clienteGeoEdit.nombre}</h3>
+                  </div>
+                  <div className="p-4 space-y-3 text-xs overflow-y-auto">
+                    <div className="bg-stone-50 border border-stone-200 rounded-2xl p-3 space-y-2">
+                      <span className="font-black block">1. Datos del Comercio y Teléfono</span>
+                      <input type="text" value={editCliNombre} onChange={(e) => setEditCliNombre(e.target.value)} className="w-full px-3 py-1.5 bg-white border border-stone-300 rounded-xl font-bold" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input type="text" placeholder="Teléfono WhatsApp" value={editCliTelefono} onChange={(e) => setEditCliTelefono(e.target.value)} className="w-full px-2.5 py-1.5 bg-white border border-stone-300 rounded-xl font-bold" />
+                        <input type="text" placeholder="Contacto" value={editCliContacto} onChange={(e) => setEditCliContacto(e.target.value)} className="w-full px-2.5 py-1.5 bg-white border border-stone-300 rounded-xl" />
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        <input type="text" value={editCliDireccion} onChange={(e) => setEditCliDireccion(e.target.value)} className="col-span-2 px-2.5 py-1.5 bg-white border border-stone-300 rounded-xl" />
+                        <input type="text" value={editCliLocalidad} onChange={(e) => setEditCliLocalidad(e.target.value)} className="px-2.5 py-1.5 bg-white border border-stone-300 rounded-xl font-bold" />
+                      </div>
+                    </div>
+
+                    <div className="bg-blue-50 border border-blue-200 rounded-2xl p-3 space-y-2">
+                      <span className="font-black text-blue-950 block">2. Georreferencia GPS</span>
+                      <input type="text" placeholder="Pegá link Google Maps o coordenadas (-26.81, -65.29)" value={geoInputLink} onChange={(e) => extraerCoordenadasDeTexto(e.target.value)} className="w-full px-3 py-2 bg-white border border-blue-300 rounded-xl" />
+                      <div className="grid grid-cols-2 gap-2">
+                        <input type="text" placeholder="Latitud" value={geoLat} onChange={(e) => setGeoLat(e.target.value)} className="px-2.5 py-1.5 bg-white border border-stone-300 rounded-xl font-mono font-bold" />
+                        <input type="text" placeholder="Longitud" value={geoLng} onChange={(e) => setGeoLng(e.target.value)} className="px-2.5 py-1.5 bg-white border border-stone-300 rounded-xl font-mono font-bold" />
+                      </div>
+                    </div>
+
+                    <div className="bg-amber-50 border border-amber-300 rounded-2xl p-3 space-y-2">
+                      <span className="font-black text-amber-950 block">3. Horario de Atención</span>
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {[{ id: 'cortado', label: 'Cortado' }, { id: 'corrido', label: 'Corrido' }, { id: '24hs', label: '24 Horas' }].map((t) => (
+                          <button key={t.id} type="button" onClick={() => setHorarioTipoEdit(t.id)} className={`py-1.5 rounded-xl font-extrabold text-[11px] border ${horarioTipoEdit === t.id ? 'bg-amber-600 text-white' : 'bg-white text-stone-700'}`}>
+                            {t.label}
+                          </button>
+                        ))}
+                      </div>
+                      {horarioTipoEdit !== '24hs' && (
+                        <div className="grid grid-cols-2 gap-2">
+                          <input type="time" value={horarioM1IniEdit} onChange={(e) => setHorarioM1IniEdit(e.target.value)} className="px-2 py-1.5 bg-white border border-amber-300 rounded-xl font-bold" />
+                          <input type="time" value={horarioM1FinEdit} onChange={(e) => setHorarioM1FinEdit(e.target.value)} className="px-2 py-1.5 bg-white border border-amber-300 rounded-xl font-bold" />
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-2 pt-1">
+                      <button type="button" onClick={() => setClienteGeoEdit(null)} className="py-2.5 rounded-xl bg-stone-200 font-bold">Cancelar</button>
+                      <button type="button" onClick={guardarGeorreferenciaCliente} className="py-2.5 rounded-xl bg-[#E11D2E] text-white font-extrabold">Guardar Cambios</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Modal WhatsApp desde Padrón */}
+            {clienteWaModal && (
+              <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
+                <div className="bg-white w-full max-w-md rounded-3xl overflow-hidden shadow-2xl border border-emerald-200">
+                  <div className="bg-emerald-700 text-white p-4 flex items-center justify-between">
+                    <div>
+                      <span className="text-[10px] uppercase font-extrabold bg-black/20 px-2.5 py-0.5 rounded-full">WhatsApp • {clienteWaModal.id}</span>
+                      <h3 className="text-base font-black mt-1">{clienteWaModal.nombre}</h3>
+                    </div>
+                    <button type="button" onClick={() => setClienteWaModal(null)} className="p-1.5 rounded-full bg-white/15"><Icon name="x" className="w-4 h-4" /></button>
+                  </div>
+                  <div className="p-4 space-y-3 text-xs">
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {[
+                        { id: 'lista_precios', label: '📋 Lista de Precios' },
+                        { id: 'cta_cte', label: `💰 Saldo Cta. Cte.` },
+                        { id: 'feriado', label: '📅 Aviso Feriado' },
+                        { id: 'libre', label: '✍️ Mensaje Libre' }
+                      ].map((op) => (
+                        <button key={op.id} type="button" onClick={() => setTipoMensajeWa(op.id)} className={`p-2 rounded-xl text-left font-extrabold text-[11px] border ${tipoMensajeWa === op.id ? 'bg-emerald-600 text-white' : 'bg-[#FFF8F0] text-stone-700'}`}>
+                          {op.label}
+                        </button>
+                      ))}
+                    </div>
+                    {tipoMensajeWa === 'feriado' && <input type="text" value={fechaFeriadoWa} onChange={(e) => setFechaFeriadoWa(e.target.value)} className="w-full px-3 py-2 bg-[#FFF8F0] border rounded-xl font-bold" />}
+                    {tipoMensajeWa === 'libre' && <textarea rows="3" placeholder="Escribí tu mensaje para el comercio..." value={mensajeLibreWa} onChange={(e) => setMensajeLibreWa(e.target.value)} className="w-full px-3 py-2 bg-[#FFF8F0] border rounded-xl" />}
+                    <div className="bg-stone-50 border border-stone-200 rounded-2xl p-3 text-[11px] text-stone-700 whitespace-pre-line max-h-40 overflow-y-auto">
+                      {generarTextoWhatsAppPlantilla(clienteWaModal, tipoMensajeWa)}
+                    </div>
+                    <button type="button" onClick={enviarMensajeWhatsAppDesdePadron} className="w-full py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black flex items-center justify-center gap-1.5">
+                      <Icon name="send" className="w-3.5 h-3.5" />
+                      <span>Enviar por WhatsApp</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Importador Excel Diario en Lote */}
+            {mostrarImportadorExcel && (
+              <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-xs flex items-center justify-center p-4">
+                <div className="bg-white w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl border border-amber-300 max-h-[90vh] flex flex-col">
+                  <div className="bg-[#1E1B18] text-white p-4 flex items-center justify-between shrink-0">
+                    <div>
+                      <span className="text-[10px] uppercase font-extrabold text-amber-300 block">Migración Masiva Excel → Buendía Pan</span>
+                      <h3 className="text-base font-black mt-0.5">Importar Planillas de Ventas (Individual o en Lote)</h3>
+                    </div>
+                    <button type="button" onClick={() => setMostrarImportadorExcel(false)} className="p-1.5 rounded-full bg-white/10"><Icon name="x" className="w-4 h-4" /></button>
+                  </div>
+                  <div className="p-5 space-y-4 text-xs overflow-y-auto">
+                    <div className="bg-[#FFF8F0] p-3.5 rounded-2xl border border-amber-900/15 space-y-1">
+                      <p className="font-bold text-[#1E1B18]">Podés seleccionar <span className="text-[#E11D2E]">todos los archivos del mes juntos</span> (ej. del 2-11 al 13-11):</p>
+                      <p className="text-stone-600">El sistema detecta la fecha desde el nombre de cada archivo, evita duplicados, actualiza la clasificación (A+ a E) y envía <strong>OTRAS VENTAS</strong> al comodín técnico de cada ruta.</p>
+                    </div>
+                    <label className="block w-full p-5 border-2 border-dashed border-amber-500 hover:border-[#E11D2E] rounded-2xl bg-amber-50/60 text-center cursor-pointer transition">
+                      <span className="text-sm font-black block text-[#1E1B18]">
+                        {procesandoLoteExcel ? '⏳ Procesando archivos Excel...' : '📂 Seleccionar 1 o varios archivos Excel (.xlsx / .xls)'}
+                      </span>
+                      <span className="text-[11px] text-stone-500 mt-1 block">Mantené presionado Ctrl / Shift para marcar todos los días de Noviembre</span>
+                      <input type="file" multiple accept=".xlsx,.xls,.csv" onChange={procesarArchivoExcelVentas} className="hidden" />
+                    </label>
+                    {resumenImportacion && (
+                      <div className="bg-emerald-50 border border-emerald-300 rounded-2xl p-3.5 space-y-2.5 text-emerald-950">
+                        <div className="font-black text-emerald-800 text-sm">✅ Lote Importado: {resumenImportacion.archivosProcesados} archivos Excel</div>
+                        <div className="grid grid-cols-2 gap-2 bg-white/80 p-2.5 rounded-xl border border-emerald-200">
+                          <div>Ventas Procesadas: <strong>{resumenImportacion.filasProcesadas}</strong></div>
+                          <div>Monto Total: <strong>{formatARS(resumenImportacion.montoTotalImportado)}</strong></div>
+                          <div>Clientes Dados de Alta: <strong className="text-blue-700">+{resumenImportacion.clientesNuevosDadosDeAlta || 0}</strong></div>
+                          <div>Otras Ventas: <strong>{resumenImportacion.filasOtrasVentas}</strong></div>
+                        </div>
+                        {resumenImportacion.resumenPorRepartidor && (
+                          <div className="grid grid-cols-3 gap-1.5 text-[11px]">
+                            {Object.entries(resumenImportacion.resumenPorRepartidor).map(([vKey, rep]) => (
+                              <div key={vKey} className="bg-white p-2 rounded-xl border border-emerald-200">
+                                <span className="font-black block text-[#1E1B18]">{rep.nombre}</span>
+                                <span className="text-emerald-800 font-extrabold">{rep.ops} ops • {formatARS(rep.monto)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        <div className="max-h-36 overflow-y-auto space-y-1 pt-1">
+                          {Object.entries(resumenImportacion.detallePorFecha || {}).sort((a, b) => a[0].localeCompare(b[0])).map(([fIso, info]) => (
+                            <div key={fIso} className="flex justify-between items-center text-[11px] bg-white px-2.5 py-1 rounded-lg border border-emerald-100">
+                              <span className="font-bold">📅 {info.dia} {fIso} ({info.archivo})</span>
+                              <span className="font-black text-emerald-800">{info.ops} ops • {formatARS(info.monto)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    <button type="button" onClick={() => setMostrarImportadorExcel(false)} className="w-full py-2.5 rounded-xl bg-stone-900 text-amber-300 font-black">Cerrar y Ver en Planilla Matriz</button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // ============================================================================
+      // 3. VISTA MÓVIL (IPHONE / CAMIONETA DE REPARTO EN CALLE)
+      // ============================================================================
+      return (
+        <div className="min-h-screen bg-[#FFFBF7] text-[#1E1B18] flex justify-center">
+          <div className="w-full max-w-md bg-[#FFFBF7] min-h-screen flex flex-col shadow-xl border-x border-amber-900/10">
+            <header className="bg-gradient-to-br from-[#E11D2E] via-[#C8102E] to-[#990B1E] text-white safe-top px-4 pb-4 rounded-b-3xl shadow-lg sticky top-0 z-30">
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <LogoBuendiaPan />
+                <div className="flex items-center gap-1.5">
+                  {!esVendedor && (
+                    <button type="button" onClick={() => setVistaEntorno('escritorio')} className="px-2.5 py-1.5 rounded-xl bg-white/15 hover:bg-white/25 text-amber-300 text-[11px] font-black">
+                      ← Tablero PC
+                    </button>
+                  )}
+                  <button type="button" onClick={cerrarSesion} className="px-2.5 py-1.5 rounded-xl bg-black/25 text-white text-[11px] font-bold">
+                    Salir
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between gap-2 mb-2.5">
+                {esVendedor ? (
+                  <div className="text-xs font-black bg-black/20 px-3 py-1.5 rounded-xl">
+                    🚛 {vendedorObj.nombre} ({vendedorObj.vehiculo})
+                  </div>
+                ) : (
+                  <div className="flex gap-1 bg-black/20 p-1 rounded-xl">
+                    {['A', 'B', 'C'].map((v) => (
+                      <button key={v} type="button" onClick={() => setVendedorId(v)} className={`px-2.5 py-1 rounded-lg text-xs font-black ${vendedorId === v ? 'bg-white text-[#E11D2E]' : 'text-red-100'}`}>
+                        Vend. {v}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <select value={diaActivo} onChange={(e) => setDiaActivo(e.target.value)} className="bg-black/25 text-white text-xs font-extrabold px-2.5 py-1.5 rounded-xl border border-white/20">
+                  {DIAS_SEMANA.map((d) => <option key={d} value={d} className="text-black">{d}</option>)}
+                </select>
+              </div>
+
+              <div className="bg-black/20 rounded-2xl p-3 space-y-1.5 border border-white/10">
+                <div className="flex justify-between items-center text-xs">
+                  <span className="font-black text-amber-300">{rutaActivaId || 'SIN RUTA'} • {rutaActivaNombre}</span>
+                  <span className="font-extrabold">{metricas.porcentajeObjetivo}% meta</span>
+                </div>
+                <div className="w-full h-2 bg-black/30 rounded-full overflow-hidden">
+                  <div className="h-full bg-amber-300 rounded-full transition-all" style={{ width: `${Math.min(100, metricas.porcentajeObjetivo)}%` }} />
+                </div>
+                <div className="flex justify-between text-[11px] text-red-100">
+                  <span>Neto: <strong className="text-white">{formatARS(metricas.ventaNeta)}</strong></span>
+                  <span>{objetivoDia > 0 ? (metricas.faltaObjetivo > 0 ? `Faltan ${formatARS(metricas.faltaObjetivo)}` : `Superado +${formatARS(metricas.superadoObjetivo)}`) : 'Sin meta fija'}</span>
+                </div>
+              </div>
+            </header>
+
+            {toastMsg && (
+              <div className={`fixed top-4 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl shadow-xl text-xs font-extrabold text-white ${toastMsg.tipo === 'error' ? 'bg-stone-900' : 'bg-emerald-700'}`}>
+                {toastMsg.texto}
+              </div>
+            )}
+
+            <main className="flex-1 p-4 space-y-3 pb-24">
+              {tabActiva === 'ruta' && (
+                <>
+                  <div className="bg-white rounded-2xl p-3 border border-amber-900/10 shadow-xs space-y-2">
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <Icon name="search" className="w-4 h-4 text-stone-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                        <input type="text" placeholder="Buscar comercio..." value={busquedaCliente} onChange={(e) => setBusquedaCliente(e.target.value)} className="w-full pl-9 pr-3 py-2 bg-[#FFF8F0] border border-amber-900/15 rounded-xl text-xs" />
+                      </div>
+                      <button type="button" onClick={abrirAltaClienteModal} className="px-3 py-2 rounded-xl bg-emerald-600 text-white text-xs font-black shrink-0">
+                        + Cliente
+                      </button>
+                    </div>
+                    <div className="flex gap-1.5 overflow-x-auto no-scrollbar">
+                      {[{ id: 'Todos', label: `Todos (${clientesRuta.length})` }, { id: 'PorCerrar', label: `Por cerrar (${resumenAlertasCierre.pendientesPorCerrar.length})` }, { id: 'Pendientes', label: 'Pendientes' }, { id: 'Visitados', label: 'Visitados' }].map((f) => (
+                        <button key={f.id} type="button" onClick={() => setFiltroEstado(f.id)} className={`px-2.5 py-1 rounded-lg text-[11px] font-extrabold whitespace-nowrap ${filtroEstado === f.id ? 'bg-[#E11D2E] text-white' : 'bg-[#FFF8F0] text-stone-600'}`}>
+                          {f.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    {clientesFiltrados.map((cliente) => {
+                      const esVisitado = cliente.estado === 'Visitado';
+                      const hInfo = cliente.infoHorario;
+                      return (
+                        <div key={cliente.id} className={`bg-white rounded-2xl p-3.5 border shadow-xs ${esVisitado ? 'border-emerald-300' : 'border-amber-900/10'}`}>
+                          <div className="flex justify-between items-start gap-2 mb-2">
+                            <div>
+                              <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                                <span className="text-[10px] font-black text-[#E11D2E] bg-[#FFF8F0] px-1.5 py-0.5 rounded">#{cliente.orden} • {cliente.id}</span>
+                                <span className="text-[10px] font-bold bg-stone-100 text-stone-700 px-1.5 py-0.5 rounded">{hInfo.texto}</span>
+                              </div>
+                              <h3 className="font-black text-sm text-[#1E1B18]">{cliente.nombre}</h3>
+                              <p className="text-xs text-stone-500">{cliente.direccion} • <strong>{cliente.localidad}</strong></p>
+                            </div>
+                            {esVisitado && cliente.ultimaOperacion && (
+                              <span className="text-xs font-black text-emerald-800 bg-emerald-50 px-2 py-1 rounded-xl border border-emerald-200">
+                                {formatARS(cliente.ultimaOperacion.neto)}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="grid grid-cols-3 gap-1.5 pt-1">
+                            <button type="button" onClick={() => abrirNavegacionGoogleMaps(cliente)} className="py-2 px-2 rounded-xl bg-blue-600 text-white text-xs font-extrabold flex items-center justify-center gap-1">
+                              <Icon name="navigation" className="w-3.5 h-3.5" />
+                              <span>Llegar</span>
+                            </button>
+                            <button type="button" onClick={() => abrirOperacionCliente(cliente)} className="py-2 px-2 rounded-xl bg-[#E11D2E] text-white text-xs font-black">
+                              {esVisitado ? 'Editar' : 'Vender'}
+                            </button>
+                            {esVisitado ? (
+                              <button type="button" onClick={() => compartirBoletaWhatsApp(cliente)} className="py-2 px-2 rounded-xl bg-emerald-600 text-white text-xs font-extrabold">
+                                Boleta WA
+                              </button>
+                            ) : (
+                              <button type="button" onClick={() => marcarSinCompra(cliente.id)} className="py-2 px-2 rounded-xl bg-stone-100 text-stone-700 text-xs font-bold">
+                                Sin Compra
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+
+              {tabActiva === 'stock' && (
+                <div className="bg-white rounded-3xl p-4 border border-amber-900/10 space-y-2">
+                  <h3 className="text-sm font-black">Stock Disponible en Camioneta</h3>
+                  {CATALOGO_PRODUCTOS.map((p) => (
+                    <div key={p.id} className="flex justify-between items-center p-2.5 rounded-xl bg-[#FFF8F0] text-xs">
+                      <div>
+                        <span className="font-bold block">{p.nombre}</span>
+                        <span className="text-[10px] text-stone-500">{formatARS(p.precio)} • Garantía {p.garantiaDias}d</span>
+                      </div>
+                      <span className="font-black text-sm text-[#E11D2E]">{p.preventa48 ? '48hs' : `${metricas.stockDisponible[p.id] || 0} u.`}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {tabActiva === 'caja' && (
+                <div className="bg-white rounded-3xl p-4 border border-amber-900/10 space-y-3 text-xs">
+                  <h3 className="text-sm font-black">Rendición de Caja — {diaActivo}</h3>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200">
+                      <span className="text-[10px] text-emerald-700 block">Efectivo a Rendir</span>
+                      <strong className="text-base text-emerald-950">{formatARS(metricas.recaudadoEfectivo)}</strong>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-blue-50 border border-blue-200">
+                      <span className="text-[10px] text-blue-700 block">Transferencias</span>
+                      <strong className="text-base text-blue-950">{formatARS(metricas.recaudadoTransferencia)}</strong>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200">
+                      <span className="text-[10px] text-amber-800 block">Cuenta Corriente</span>
+                      <strong className="text-base text-amber-950">{formatARS(metricas.saldoCtaCte)}</strong>
+                    </div>
+                    <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200">
+                      <span className="text-[10px] text-rose-700 block">Cambios Garantía</span>
+                      <strong className="text-base text-rose-950">-{formatARS(metricas.totalCambios)}</strong>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </main>
+
+            <nav className="fixed bottom-0 w-full max-w-md bg-white border-t border-amber-900/10 safe-bottom px-4 py-2 grid grid-cols-3 gap-2 z-30">
+              {[
+                { id: 'ruta', label: 'Hoja de Ruta', icon: 'store' },
+                { id: 'stock', label: 'Stock Camioneta', icon: 'package' },
+                { id: 'caja', label: 'Rendición & Meta', icon: 'receipt' }
+              ].map((t) => (
+                <button key={t.id} type="button" onClick={() => setTabActiva(t.id)} className={`py-2 rounded-2xl flex flex-col items-center gap-0.5 text-[11px] font-extrabold ${tabActiva === t.id ? 'bg-[#E11D2E] text-white' : 'text-stone-500'}`}>
+                  <Icon name={t.icon} className="w-4 h-4" />
+                  <span>{t.label}</span>
+                </button>
+              ))}
+            </nav>
+
+            {/* Modal Toma de Pedido / Cambios / Promociones */}
+            {clienteModalObj && (
+              <div className="fixed inset-0 z-50 bg-black/75 flex items-end sm:items-center justify-center">
+                <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col overflow-hidden">
+                  <div className="bg-[#1E1B18] text-white p-4 flex justify-between items-center shrink-0">
+                    <div>
+                      <span className="text-[10px] text-amber-300 font-extrabold uppercase">{clienteModalObj.id}</span>
+                      <h3 className="text-sm font-black">{clienteModalObj.nombre}</h3>
+                    </div>
+                    <button type="button" onClick={() => setClienteActivoId(null)} className="p-1.5 rounded-full bg-white/10"><Icon name="x" className="w-4 h-4" /></button>
+                  </div>
+
+                  <div className="p-3 bg-[#FFF8F0] border-b grid grid-cols-3 gap-1.5 shrink-0">
+                    {[
+                      { id: 'venta', label: 'Venta ($)' },
+                      { id: 'cambio', label: 'Cambio Garantía' },
+                      { id: 'promo', label: '★ Promoción' }
+                    ].map((m) => (
+                      <button key={m.id} type="button" onClick={() => setModoOperacion(m.id)} className={`py-2 rounded-xl text-xs font-black ${modoOperacion === m.id ? 'bg-[#E11D2E] text-white' : 'bg-white text-stone-700'}`}>
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="p-3 overflow-y-auto space-y-2 flex-1 text-xs">
+                    {CATALOGO_PRODUCTOS.map((p) => {
+                      const qActual = modoOperacion === 'venta' ? cantidadesVenta[p.id] || 0 : modoOperacion === 'cambio' ? cantidadesCambio[p.id] || 0 : cantidadesPromo[p.id] || 0;
+                      return (
+                        <div key={p.id} className="flex items-center justify-between p-2.5 rounded-xl bg-stone-50 border border-stone-200">
+                          <div>
+                            <div className="font-bold text-[#1E1B18]">{p.nombre}</div>
+                            <div className="text-[10px] text-stone-500">{formatARS(p.precio)} • Garantía {p.garantiaDias}d</div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <button type="button" onClick={() => ajustarCantidad(modoOperacion, p.id, -1)} className="w-7 h-7 rounded-lg bg-white border font-black">-</button>
+                            <span className="w-6 text-center font-black">{qActual}</span>
+                            <button type="button" onClick={() => ajustarCantidad(modoOperacion, p.id, 1)} className="w-7 h-7 rounded-lg bg-[#1E1B18] text-white font-black">+</button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="p-4 bg-white border-t space-y-2.5 shrink-0 text-xs">
+                    {Object.values(cantidadesCambio).some((v) => v > 0) && (
+                      <label className="flex items-center gap-2 p-2 rounded-xl bg-amber-50 border border-amber-300 font-bold text-amber-950">
+                        <input type="checkbox" checked={garantiaVerificada} onChange={(e) => setGarantiaVerificada(e.target.checked)} />
+                        <span>Confirmo envase dentro de garantía (14d / 10d)</span>
+                      </label>
+                    )}
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {['Efectivo', 'Transferencia', 'Cuenta Corriente'].map((mp) => (
+                        <button key={mp} type="button" onClick={() => setMetodoPago(mp)} className={`py-1.5 rounded-xl font-extrabold text-[11px] border ${metodoPago === mp ? 'bg-stone-900 text-amber-300' : 'bg-stone-50 text-stone-700'}`}>
+                          {mp}
+                        </button>
+                      ))}
+                    </div>
+                    <button type="button" onClick={confirmarPedidoCliente} className="w-full py-3 rounded-2xl bg-[#E11D2E] text-white font-black text-sm">
+                      Confirmar Operación
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Alta Rápida Cliente */}
+            {mostrarAltaCliente && (
+              <div className="fixed inset-0 z-50 bg-black/75 flex items-center justify-center p-4">
+                <form onSubmit={guardarNuevoCliente} className="bg-white w-full max-w-sm rounded-3xl p-4 space-y-3 text-xs">
+                  <h3 className="text-sm font-black">Alta Rápida de Cliente en {rutaActivaId}</h3>
+                  <input type="text" required placeholder="Nombre del Comercio" value={nuevoCliNombre} onChange={(e) => setNuevoCliNombre(e.target.value)} className="w-full px-3 py-2 bg-[#FFF8F0] border rounded-xl font-bold" />
+                  <input type="text" required placeholder="Dirección" value={nuevoCliDireccion} onChange={(e) => setNuevoCliDireccion(e.target.value)} className="w-full px-3 py-2 bg-[#FFF8F0] border rounded-xl" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input type="text" placeholder="Localidad" value={nuevoCliLocalidad} onChange={(e) => setNuevoCliLocalidad(e.target.value)} className="px-3 py-2 bg-[#FFF8F0] border rounded-xl" />
+                    <input type="text" placeholder="Teléfono" value={nuevoCliTelefono} onChange={(e) => setNuevoCliTelefono(e.target.value)} className="px-3 py-2 bg-[#FFF8F0] border rounded-xl" />
+                  </div>
+                  <button type="button" onClick={capturarGpsParaNuevoCliente} className="w-full py-2 rounded-xl bg-blue-600 text-white font-extrabold">
+                    {capturandoGpsNuevo ? 'Obteniendo GPS...' : nuevoCliLat ? `GPS OK (${nuevoCliLat}, ${nuevoCliLng})` : 'Capturar GPS Actual'}
+                  </button>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button type="button" onClick={() => setMostrarAltaCliente(false)} className="py-2 rounded-xl bg-stone-200 font-bold">Cancelar</button>
+                    <button type="submit" className="py-2 rounded-xl bg-emerald-600 text-white font-black">Guardar Cliente</button>
+                  </div>
+                </form>
+              </div>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
