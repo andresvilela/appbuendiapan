@@ -704,9 +704,13 @@
         if (!files.length) return;
         setProcesandoLoteExcel(true);
         try {
-          let totalOps = 0, totalMonto = 0, clientesExistentesMatch = 0, clientesNuevosDadosDeAlta = 0, filasOtrasVentas = 0;
+          let totalOps = 0, totalMonto = 0, totalCobrado = 0, totalSaldo = 0, clientesExistentesMatch = 0, clientesNuevosDadosDeAlta = 0, filasOtrasVentas = 0;
           const detallePorFecha = {};
-          const resumenPorRepartidor = { A: { nombre: 'Gabriel (Vend. A)', ops: 0, monto: 0 }, B: { nombre: 'Facundo (Vend. B)', ops: 0, monto: 0 }, C: { nombre: 'Federico (Vend. C)', ops: 0, monto: 0 } };
+          const resumenPorRepartidor = {
+            A: { nombre: 'Gabriel (Vend. A)', ops: 0, monto: 0, cobrado: 0 },
+            B: { nombre: 'Facundo (Vend. B)', ops: 0, monto: 0, cobrado: 0 },
+            C: { nombre: 'Federico (Vend. C)', ops: 0, monto: 0, cobrado: 0 }
+          };
           const nuevoEstado = JSON.parse(JSON.stringify(rutasData));
 
           const normalizarTxt = (s) =>
@@ -714,15 +718,14 @@
               .normalize('NFD')
               .replace(/[\u0300-\u036f]/g, '')
               .toUpperCase()
-              .replace(/[^A-Z0-9\s]/g, ' ')
+              .replace(/[^A-Z0-9\s-]/g, ' ')
               .replace(/\s+/g, ' ')
               .trim();
 
           const parsearNumero = (val) => {
             if (typeof val === 'number') return Number.isFinite(val) ? val : 0;
             const str = String(val || '').replace(/[$\s]/g, '').trim();
-            if (!str) return 0;
-            // Soporta tanto formato AR (1.250,50) como US (1,250.50)
+            if (!str || str === '#REF!' || str === '#VALUE!' || str === '#N/A') return 0;
             const limpio = str.includes(',') && str.includes('.')
               ? (str.lastIndexOf(',') > str.lastIndexOf('.') ? str.replace(/\./g, '').replace(',', '.') : str.replace(/,/g, ''))
               : str.includes(',')
@@ -732,145 +735,269 @@
             return Number.isFinite(n) ? n : 0;
           };
 
+          const parsearFechaExcel = (celdaFecha, fallbackIso) => {
+            if (celdaFecha instanceof Date && !Number.isNaN(celdaFecha.getTime())) {
+              const y = celdaFecha.getFullYear();
+              const m = String(celdaFecha.getMonth() + 1).padStart(2, '0');
+              const d = String(celdaFecha.getDate()).padStart(2, '0');
+              return `${y}-${m}-${d}`;
+            }
+            if (typeof celdaFecha === 'number' && celdaFecha > 40000 && celdaFecha < 60000) {
+              const dt = new Date(Math.round((celdaFecha - 25569) * 86400 * 1000));
+              if (!Number.isNaN(dt.getTime())) {
+                return dt.toISOString().slice(0, 10);
+              }
+            }
+            const str = String(celdaFecha || '').trim();
+            const mIso = str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (mIso) return `${mIso[1]}-${mIso[2]}-${mIso[3]}`;
+            const mLat = str.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{2,4})/);
+            if (mLat) {
+              const yy = mLat[3].length === 2 ? `20${mLat[3]}` : mLat[3];
+              return `${yy}-${String(mLat[2]).padStart(2, '0')}-${String(mLat[1]).padStart(2, '0')}`;
+            }
+            return fallbackIso;
+          };
+
+          const MAPA_CODIGOS_PRODUCTO = {
+            HA01: { id: 'hamburguesa', tipo: 'venta', precio: 1050 },
+            HA02: { id: 'hamburguesa', tipo: 'promo', precio: 1050 },
+            HA03: { id: 'hamburguesa', tipo: 'cambio', precio: 1050 },
+            VI01: { id: 'viena', tipo: 'venta', precio: 1050 },
+            VI02: { id: 'viena', tipo: 'promo', precio: 1050 },
+            VI03: { id: 'viena', tipo: 'cambio', precio: 1050 },
+            PA01: { id: 'doble_salvado', tipo: 'venta', precio: 1350 },
+            PA02: { id: 'doble_salvado', tipo: 'promo', precio: 1350 },
+            PA03: { id: 'doble_salvado', tipo: 'cambio', precio: 1350 },
+            PE01: { id: 'pebete', tipo: 'venta', precio: 1350 },
+            PE02: { id: 'pebete', tipo: 'promo', precio: 1350 },
+            PE03: { id: 'pebete', tipo: 'cambio', precio: 1350 },
+            HB01: { id: 'brioche', tipo: 'venta', precio: 1900 },
+            HB02: { id: 'brioche', tipo: 'promo', precio: 1900 },
+            HB03: { id: 'brioche', tipo: 'cambio', precio: 1900 },
+            CH01: { id: 'chips', tipo: 'venta', precio: 4600 },
+            CH02: { id: 'chips', tipo: 'promo', precio: 4600 },
+            CH03: { id: 'chips', tipo: 'cambio', precio: 4600 },
+            LB01: { id: 'lactal_blanco', tipo: 'venta', precio: 1700 },
+            LB02: { id: 'lactal_blanco', tipo: 'promo', precio: 1700 },
+            LB03: { id: 'lactal_blanco', tipo: 'cambio', precio: 1700 },
+            LN01: { id: 'lactal_salvado', tipo: 'venta', precio: 1700 },
+            LN02: { id: 'lactal_salvado', tipo: 'promo', precio: 1700 },
+            LN03: { id: 'lactal_salvado', tipo: 'cambio', precio: 1700 },
+            LI01: { id: 'lactal_integral', tipo: 'venta', precio: 1700 },
+            LI02: { id: 'lactal_integral', tipo: 'promo', precio: 1700 },
+            LI03: { id: 'lactal_integral', tipo: 'cambio', precio: 1700 },
+            LA01: { id: 'lactal_multi_int', tipo: 'venta', precio: 3400 },
+            LA02: { id: 'lactal_multi_int', tipo: 'promo', precio: 3400 },
+            LA03: { id: 'lactal_multi_int', tipo: 'cambio', precio: 3400 },
+            LM01: { id: 'lactal_multi_sal', tipo: 'venta', precio: 3400 },
+            LM02: { id: 'lactal_multi_sal', tipo: 'promo', precio: 3400 },
+            LM03: { id: 'lactal_multi_sal', tipo: 'cambio', precio: 3400 },
+            PZ01: { id: 'pizzetas', tipo: 'venta', precio: 950 },
+            PZ02: { id: 'pizzetas', tipo: 'promo', precio: 950 },
+            PZ03: { id: 'pizzetas', tipo: 'cambio', precio: 950 },
+            GS01: { id: 'semolada_chia', tipo: 'venta', precio: 5500 },
+            GD01: { id: 'maicenas', tipo: 'venta', precio: 6000 },
+            GD02: { id: 'mantecados', tipo: 'venta', precio: 5500 },
+            GD03: { id: 'palmeritas', tipo: 'venta', precio: 5100 },
+            PM01: { id: 'pan_miga', tipo: 'venta', precio: 3600 },
+            PM02: { id: 'pan_miga', tipo: 'promo', precio: 3600 },
+            PM03: { id: 'pan_miga', tipo: 'cambio', precio: 3600 }
+          };
+
           const diasJs = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
           for (const file of files) {
             const buf = await file.arrayBuffer();
-            const wb = XLSX.read(buf, { type: 'array' });
+            const wb = XLSX.read(buf, { type: 'array', cellDates: true });
             const matchFecha = file.name.match(/(\d{1,2})[-_](\d{1,2})(?:[-_](\d{2,4}))?/);
             const diaNum = matchFecha ? parseInt(matchFecha[1], 10) : ahoraReal.getDate();
             const mesNum = matchFecha ? parseInt(matchFecha[2], 10) : (ahoraReal.getMonth() + 1);
             const anioNum = matchFecha && matchFecha[3]
               ? (matchFecha[3].length === 2 ? 2000 + parseInt(matchFecha[3], 10) : parseInt(matchFecha[3], 10))
               : 2026;
+            const fIsoArchivo = `${anioNum}-${String(mesNum).padStart(2, '0')}-${String(diaNum).padStart(2, '0')}`;
 
-            const fIso = `${anioNum}-${String(mesNum).padStart(2, '0')}-${String(diaNum).padStart(2, '0')}`;
-            const fechaObj = new Date(anioNum, mesNum - 1, diaNum);
-            const nombreDiaArchivo = diasJs[fechaObj.getDay()] || 'Lunes';
+            // 1. Si el libro trae solapa DATA BASE 2.0, sincronizar padrón maestro
+            const sheetDbName = wb.SheetNames.find((n) => normalizarTxt(n).includes('DATA BASE 2'));
+            if (sheetDbName) {
+              const mDb = XLSX.utils.sheet_to_json(wb.Sheets[sheetDbName], { header: 1, defval: '' });
+              for (let r = 1; r < mDb.length; r++) {
+                const rowDb = mDb[r] || [];
+                const codRutaDb = String(rowDb[2] || '').trim().toUpperCase();
+                const codCliDb = String(rowDb[3] || '').trim().toUpperCase();
+                const razonDb = String(rowDb[9] || '').trim().toUpperCase();
+                if (!codRutaDb || !NOMBRES_RUTAS[codRutaDb] || !razonDb || razonDb === '0' || razonDb === 'FALSE') continue;
 
+                const listaR = nuevoEstado[codRutaDb] || [];
+                let cliExist = listaR.find((c) => c.id === codCliDb || normalizarTxt(c.nombre) === normalizarTxt(razonDb));
+                const telRaw = String(rowDb[11] || '').replace(/\.0$/, '').trim();
+                if (cliExist) {
+                  if (codCliDb) cliExist.id = codCliDb;
+                  if (rowDb[8]) cliExist.direccion = String(rowDb[8]).trim();
+                  if (rowDb[1]) cliExist.localidad = String(rowDb[1]).trim().toUpperCase();
+                  if (rowDb[10]) cliExist.contacto = String(rowDb[10]).trim();
+                  if (telRaw) cliExist.telefono = telRaw;
+                } else {
+                  const realesCount = listaR.filter((c) => !c.esOtrasVentas).length;
+                  const nuevoCli = {
+                    id: codCliDb || `${codRutaDb}-C-${String(realesCount + 1).padStart(3, '0')}`,
+                    orden: parseInt(rowDb[7], 10) || (realesCount + 1),
+                    nombre: razonDb,
+                    contacto: String(rowDb[10] || '').trim(),
+                    direccion: String(rowDb[8] || '').trim(),
+                    localidad: String(rowDb[1] || NOMBRES_RUTAS[codRutaDb]).trim().toUpperCase(),
+                    telefono: telRaw,
+                    lat: null,
+                    lng: null,
+                    horario: { tipo: 'cortado', mananaIni: '08:00', mananaFin: '13:00', tardeIni: '17:00', tardeFin: '21:00' },
+                    estado: 'Pendiente',
+                    ultimaOperacion: null,
+                    historialPrevio: [],
+                    esOtrasVentas: false
+                  };
+                  const idxCom = listaR.findIndex((c) => c.esOtrasVentas);
+                  if (idxCom >= 0) listaR.splice(idxCom, 0, nuevoCli);
+                  else listaR.push(nuevoCli);
+                  nuevoEstado[codRutaDb] = listaR;
+                  clientesNuevosDadosDeAlta += 1;
+                }
+              }
+            }
+
+            // 2. Leer las solapas de reparto de los 3 vendedores
             let opsArchivo = 0;
             let montoArchivo = 0;
 
             wb.SheetNames.forEach((sheetName) => {
               const sNorm = normalizarTxt(sheetName);
-              // Detectar solapa por repartidor: GABRIEL -> A, FACUNDO -> B, FEDERICO -> C
-              let vendedorSheet = null;
-              if (sNorm.includes('GABRIEL') || sNorm.includes('VENDEDOR A')) vendedorSheet = 'A';
-              else if (sNorm.includes('FACUNDO') || sNorm.includes('VENDEDOR B')) vendedorSheet = 'B';
-              else if (sNorm.includes('FEDERICO') || sNorm.includes('VENDEDOR C')) vendedorSheet = 'C';
-
-              // Si el libro tiene solapas de reparto específicas, ignorar hojas auxiliares que no sean de reparto
-              const tieneSolapasReparto = wb.SheetNames.some((n) => {
-                const nn = normalizarTxt(n);
-                return nn.includes('GABRIEL') || nn.includes('FACUNDO') || nn.includes('FEDERICO');
-              });
-              if (tieneSolapasReparto && !vendedorSheet) return;
-
               const sheet = wb.Sheets[sheetName];
               const matriz = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-              if (!matriz || matriz.length < 2) return;
+              if (!matriz || matriz.length < 4) return;
 
-              // Determinar ruta del día según vendedor y fecha del archivo
-              let rutaDetectada = null;
-              if (vendedorSheet) {
-                const ag = PLANIFICACION_VENDEDORES[vendedorSheet]?.agenda?.[nombreDiaArchivo];
-                rutaDetectada = ag?.rutaId || (vendedorSheet === 'A' ? 'R-5' : vendedorSheet === 'B' ? 'R-1' : 'R-3');
+              const row1 = matriz[0] || [];
+              const row2 = matriz[1] || [];
+              const r2Norm = row2.map((h) => normalizarTxt(h));
+
+              const esPlanillaReparto = r2Norm[6] === 'CLIENTE' && (r2Norm[5] === 'COD REPARTO' || r2Norm[3] === 'CODIGO');
+              if (!esPlanillaReparto) return;
+
+              let vendedorSheet = null;
+              const vendCeldaG1 = normalizarTxt(row1[6]);
+              const vendCeldaBD46 = normalizarTxt((matriz[45] || [])[55]);
+              if (sNorm.includes('GABRIEL') || vendCeldaG1.includes('GABRIEL') || vendCeldaBD46.includes('GABRIEL')) {
+                vendedorSheet = 'A';
+              } else if (sNorm.includes('FACUNDO') || vendCeldaG1.includes('FACUNDO') || vendCeldaBD46.includes('FACUNDO')) {
+                vendedorSheet = 'B';
+              } else if (
+                sNorm.includes('FEDERICO') ||
+                sNorm.includes('FEDE') ||
+                sheetName.trim() === '-' ||
+                vendCeldaG1.includes('FEDERICO') ||
+                vendCeldaBD46.includes('FEDERICO')
+              ) {
+                vendedorSheet = 'C';
               }
+              if (!vendedorSheet) return;
 
-              // Buscar fila de encabezados (escaneando las primeras 15 filas)
-              let idxHeader = -1;
-              for (let i = 0; i < Math.min(15, matriz.length); i++) {
-                const fila = matriz[i] || [];
-                const coincide = fila.some((cel) => {
-                  const t = normalizarTxt(cel);
-                  return t === 'CLIENTE' || t === 'COMERCIO' || t.includes('NOMBRE') || t.includes('RAZON SOCIAL') || t.includes('LOCAL');
-                });
-                if (coincide) {
-                  idxHeader = i;
-                  break;
+              const colsCodigos = [];
+              for (let cIdx = 8; cIdx <= 53; cIdx++) {
+                const codProd = String(row1[cIdx] || '').trim().toUpperCase();
+                if (MAPA_CODIGOS_PRODUCTO[codProd]) {
+                  colsCodigos.push({ cIdx, codProd, info: MAPA_CODIGOS_PRODUCTO[codProd] });
                 }
               }
-              if (idxHeader === -1) idxHeader = 0;
-              const headers = (matriz[idxHeader] || []).map((h) => normalizarTxt(h));
 
-              let colCliente = headers.findIndex((h) => h === 'CLIENTE' || h === 'COMERCIO' || h.includes('CLIENTE') || h.includes('COMERCIO') || h.includes('NOMBRE'));
-              if (colCliente === -1) colCliente = 0;
-              const colDireccion = headers.findIndex((h) => h.includes('DIRECCION') || h.includes('DOMICILIO') || h.includes('CALLE'));
-              const colLocalidad = headers.findIndex((h) => h.includes('LOCALIDAD') || h.includes('ZONA') || h.includes('BARRIO'));
-              const colTelefono = headers.findIndex((h) => h.includes('TELEFONO') || h.includes('CELULAR') || h.includes('TEL'));
-              const colTotal = headers.findIndex((h) => h.includes('TOTAL') || h.includes('IMPORTE') || h.includes('VENTA') || h.includes('MONTO') || h.includes('NETO'));
-              const colCambio = headers.findIndex((h) => h.includes('CAMBIO') || h.includes('DEVOL') || h.includes('MERMA'));
-              const colPromo = headers.findIndex((h) => h.includes('PROMO') || h.includes('BONIF'));
-              const colPago = headers.findIndex((h) => h.includes('PAGO') || h.includes('COND') || h.includes('CTA') || h.includes('TRANSF') || h.includes('EFECTIVO'));
-
-              // Mapear columnas de productos por coincidencia flexible de nombre
-              const colsProductos = [];
-              headers.forEach((h, cIdx) => {
-                if ([colCliente, colDireccion, colLocalidad, colTelefono, colTotal, colCambio, colPromo, colPago].includes(cIdx) || !h) return;
-                const prodMatch = CATALOGO_PRODUCTOS.find((p) => {
-                  const pBase = normalizarTxt(p.nombre).split(' X ')[0].trim();
-                  return h.includes(pBase) || (pBase.length >= 5 && pBase.includes(h) && h.length >= 4);
-                });
-                if (prodMatch) colsProductos.push({ cIdx, prod: prodMatch });
-              });
-
-              for (let r = idxHeader + 1; r < matriz.length; r++) {
+              for (let r = 2; r < Math.min(matriz.length, 46); r++) {
                 const fila = matriz[r] || [];
-                const rawCli = String(fila[colCliente] ?? '').trim();
+                const zonaTxt = normalizarTxt(fila[0]);
+                const codigoCompleto = String(fila[3] || '').trim().toUpperCase();
+                const codReparto = String(fila[5] || '').trim().toUpperCase();
+                const rawCli = String(fila[6] ?? '').trim();
                 const nomNorm = normalizarTxt(rawCli);
-                if (!nomNorm || nomNorm.length < 2) continue;
-                if (nomNorm.startsWith('TOTAL') || nomNorm.startsWith('SUBTOTAL') || nomNorm === 'CLIENTE' || nomNorm === 'COMERCIO' || nomNorm.startsWith('REPARTO ')) continue;
+
+                if (
+                  !rawCli ||
+                  rawCli === '0' ||
+                  nomNorm === 'FALSE' ||
+                  nomNorm.includes('VER ERROR') ||
+                  zonaTxt.includes('VER UBICACION') ||
+                  nomNorm.startsWith('TOTAL')
+                ) {
+                  continue;
+                }
+
+                const fechaFilaIso = parsearFechaExcel(fila[2], fIsoArchivo);
+                const [fy, fm, fd] = fechaFilaIso.split('-').map(Number);
+                const diaSemFila = diasJs[new Date(fy, fm - 1, fd).getDay()] || 'Lunes';
 
                 const itemsVendidos = {};
-                let sumaProductos = 0;
-                colsProductos.forEach(({ cIdx, prod }) => {
-                  const qty = Math.round(parsearNumero(fila[cIdx]));
+                const itemsPromocion = {};
+                const itemsCambiados = {};
+                let ventaBrutaCalc = 0;
+                let promoMontoCalc = 0;
+                let cambioMontoCalc = 0;
+
+                colsCodigos.forEach(({ cIdx, info }) => {
+                  const qty = parsearNumero(fila[cIdx]);
                   if (qty > 0) {
-                    itemsVendidos[prod.id] = (itemsVendidos[prod.id] || 0) + qty;
-                    sumaProductos += qty * prod.precio;
+                    if (info.tipo === 'venta') {
+                      itemsVendidos[info.id] = (itemsVendidos[info.id] || 0) + qty;
+                      ventaBrutaCalc += qty * info.precio;
+                    } else if (info.tipo === 'promo') {
+                      itemsPromocion[info.id] = (itemsPromocion[info.id] || 0) + qty;
+                      promoMontoCalc += qty * info.precio;
+                    } else if (info.tipo === 'cambio') {
+                      itemsCambiados[info.id] = (itemsCambiados[info.id] || 0) + qty;
+                      cambioMontoCalc += qty * info.precio;
+                    }
                   }
                 });
 
-                const montoLeido = colTotal >= 0 ? parsearNumero(fila[colTotal]) : 0;
-                const totalVenta = montoLeido > 0 ? montoLeido : sumaProductos;
-                const totalCambio = colCambio >= 0 ? parsearNumero(fila[colCambio]) : 0;
-                const totalPromoValor = colPromo >= 0 ? parsearNumero(fila[colPromo]) : 0;
+                const totalBoletaBC = parsearNumero(fila[54]);
+                const cobradoBD = parsearNumero(fila[55]);
+                const saldoBE = parsearNumero(fila[56]);
 
-                const esOtras = nomNorm.includes('OTRA') || nomNorm.includes('VARI') || nomNorm.includes('MOSTRADOR') || nomNorm.includes('SIN IDENT');
+                const netoFinal = totalBoletaBC > 0 ? totalBoletaBC : Math.max(0, ventaBrutaCalc - promoMontoCalc - cambioMontoCalc);
+                const totalVentaBruta = ventaBrutaCalc > 0 ? ventaBrutaCalc : (netoFinal + cambioMontoCalc);
+                const diferenciaSaldo = saldoBE !== 0 ? saldoBE : (netoFinal - cobradoBD);
 
-                // Buscar cliente existente en la ruta detectada o en todo el padrón
-                let rutaDestino = rutaDetectada || 'R-1';
+                if (netoFinal === 0 && cobradoBD === 0 && Object.keys(itemsVendidos).length === 0) continue;
+
+                const rutaDestino = NOMBRES_RUTAS[codReparto] ? codReparto : (vendedorSheet === 'A' ? 'R-5' : vendedorSheet === 'B' ? 'R-1' : 'R-3');
+                const esOtras = nomNorm.includes('OTRAS VENTAS') || codigoCompleto.endsWith('-C-501');
+
                 let clienteDestino = null;
+                if (esOtras) {
+                  clienteDestino = (nuevoEstado[rutaDestino] || []).find((c) => c.esOtrasVentas) || (nuevoEstado[rutaDestino] || [])[0];
+                  filasOtrasVentas += 1;
+                } else {
+                  const listaR = nuevoEstado[rutaDestino] || [];
+                  clienteDestino = listaR.find((c) => !c.esOtrasVentas && (c.id === codigoCompleto || normalizarTxt(c.nombre) === nomNorm));
 
-                if (!esOtras) {
-                  const buscarEn = rutaDetectada ? [rutaDetectada, ...Object.keys(nuevoEstado).filter((k) => k !== rutaDetectada)] : Object.keys(nuevoEstado);
-                  for (const rKey of buscarEn) {
-                    const encontrado = (nuevoEstado[rKey] || []).find((c) => {
+                  if (!clienteDestino) {
+                    const nomBase = nomNorm.split('(')[0].trim();
+                    clienteDestino = listaR.find((c) => {
                       if (c.esOtrasVentas) return false;
-                      const cNorm = normalizarTxt(c.nombre);
-                      const cBase = cNorm.split('(')[0].trim();
-                      return cNorm === nomNorm || (cBase.length >= 4 && (nomNorm.includes(cBase) || cBase.includes(nomNorm)));
+                      const cBase = normalizarTxt(c.nombre).split('(')[0].trim();
+                      return cBase.length >= 4 && (cBase === nomBase || nomBase.includes(cBase) || cBase.includes(nomBase));
                     });
-                    if (encontrado) {
-                      rutaDestino = rKey;
-                      clienteDestino = encontrado;
-                      clientesExistentesMatch += 1;
-                      break;
-                    }
                   }
 
-                  // Si el cliente del Excel no existía aún en la base, DARLO DE ALTA automáticamente en esa ruta
-                  if (!clienteDestino) {
-                    const listaActual = nuevoEstado[rutaDestino] || [];
-                    const realesCount = listaActual.filter((c) => !c.esOtrasVentas).length;
+                  if (clienteDestino) {
+                    clientesExistentesMatch += 1;
+                  } else {
+                    const realesCount = listaR.filter((c) => !c.esOtrasVentas).length;
+                    const locMatch = rawCli.match(/\(([^)]+)\)/);
+                    const localidadCli = locMatch ? locMatch[1].trim().toUpperCase() : (zonaTxt || NOMBRES_RUTAS[rutaDestino]);
                     const nuevoClienteObj = {
-                      id: `${rutaDestino}-C-${String(realesCount + 1).padStart(3, '0')}`,
+                      id: codigoCompleto || `${rutaDestino}-C-${String(realesCount + 1).padStart(3, '0')}`,
                       orden: realesCount + 1,
                       nombre: rawCli.toUpperCase(),
                       contacto: '',
-                      direccion: colDireccion >= 0 ? String(fila[colDireccion] || '').trim() : '',
-                      localidad: colLocalidad >= 0 && fila[colLocalidad] ? String(fila[colLocalidad]).trim().toUpperCase() : (NOMBRES_RUTAS[rutaDestino] || 'TUCUMÁN'),
-                      telefono: colTelefono >= 0 ? String(fila[colTelefono] || '').trim() : '',
+                      direccion: '',
+                      localidad: localidadCli,
+                      telefono: '',
                       lat: null,
                       lng: null,
                       horario: { tipo: 'cortado', mananaIni: '08:00', mananaFin: '13:00', tardeIni: '17:00', tardeFin: '21:00' },
@@ -880,62 +1007,60 @@
                       esOtrasVentas: false,
                       esNuevo: true
                     };
-                    // Insertar antes del comodín OTRAS VENTAS
-                    const idxComodin = listaActual.findIndex((c) => c.esOtrasVentas);
-                    if (idxComodin >= 0) listaActual.splice(idxComodin, 0, nuevoClienteObj);
-                    else listaActual.push(nuevoClienteObj);
-                    nuevoEstado[rutaDestino] = listaActual;
+                    const idxCom = listaR.findIndex((c) => c.esOtrasVentas);
+                    if (idxCom >= 0) listaR.splice(idxCom, 0, nuevoClienteObj);
+                    else listaR.push(nuevoClienteObj);
+                    nuevoEstado[rutaDestino] = listaR;
                     clienteDestino = nuevoClienteObj;
                     clientesNuevosDadosDeAlta += 1;
                   }
-                } else {
-                  clienteDestino = (nuevoEstado[rutaDestino] || []).find((c) => c.esOtrasVentas) || (nuevoEstado[rutaDestino] || [])[0];
-                  filasOtrasVentas += 1;
                 }
 
-                // Si la fila tiene monto o productos vendidos, registrar operación en el historial del cliente
-                if (clienteDestino && (totalVenta > 0 || totalCambio > 0 || totalPromoValor > 0 || Object.keys(itemsVendidos).length > 0)) {
-                  const pagoNorm = colPago >= 0 ? normalizarTxt(fila[colPago]) : '';
-                  const metodoPago = pagoNorm.includes('CTA') || pagoNorm.includes('CORRIENTE') || pagoNorm.includes('FIADO')
-                    ? 'Cuenta Corriente'
-                    : pagoNorm.includes('TRANSF') || pagoNorm.includes('MP') || pagoNorm.includes('ALIAS')
-                    ? 'Transferencia'
-                    : 'Efectivo';
+                const metodoPago = diferenciaSaldo > 0 ? 'Cuenta Corriente' : 'Efectivo';
 
-                  const nroComp = `IMP-${fIso.replace(/-/g, '')}-${String(totalOps + 1).padStart(4, '0')}`;
+                if (clienteDestino) {
+                  const nroComp = `IMP-${fechaFilaIso.replace(/-/g, '')}-${vendedorSheet}-F${r + 1}`;
                   clienteDestino.historialPrevio = (clienteDestino.historialPrevio || []).filter(
-                    (h) => !(h.fecha === fIso && h.origenExcel === file.name && h.totalVenta === totalVenta)
+                    (h) => h.numeroComprobante !== nroComp
                   );
                   clienteDestino.historialPrevio.push({
-                    fecha: fIso,
+                    fecha: fechaFilaIso,
                     numeroComprobante: nroComp,
                     hora: '12:00',
-                    totalVenta,
-                    totalCambio,
-                    totalPromoValor,
-                    neto: totalVenta - totalCambio,
+                    totalVenta: totalVentaBruta,
+                    totalCambio: cambioMontoCalc,
+                    totalPromoValor: promoMontoCalc,
+                    neto: netoFinal,
+                    cobrado: cobradoBD,
+                    saldo: diferenciaSaldo,
                     metodoPago,
                     itemsVendidos,
-                    itemsCambiados: {},
-                    itemsPromocion: {},
-                    origenExcel: file.name,
-                    repartidor: vendedorSheet || ''
+                    itemsCambiados,
+                    itemsPromocion,
+                    origenExcel: `${file.name} (${sheetName})`,
+                    repartidor: vendedorSheet
                   });
 
-                  if (vendedorSheet && resumenPorRepartidor[vendedorSheet]) {
-                    resumenPorRepartidor[vendedorSheet].ops += 1;
-                    resumenPorRepartidor[vendedorSheet].monto += totalVenta;
-                  }
+                  resumenPorRepartidor[vendedorSheet].ops += 1;
+                  resumenPorRepartidor[vendedorSheet].monto += netoFinal;
+                  resumenPorRepartidor[vendedorSheet].cobrado += cobradoBD;
 
                   opsArchivo += 1;
-                  montoArchivo += totalVenta;
+                  montoArchivo += netoFinal;
                   totalOps += 1;
-                  totalMonto += totalVenta;
+                  totalMonto += netoFinal;
+                  totalCobrado += cobradoBD;
+                  totalSaldo += diferenciaSaldo;
+
+                  if (!detallePorFecha[fechaFilaIso]) {
+                    detallePorFecha[fechaFilaIso] = { archivo: file.name, dia: diaSemFila, ops: 0, monto: 0, cobrado: 0 };
+                  }
+                  detallePorFecha[fechaFilaIso].ops += 1;
+                  detallePorFecha[fechaFilaIso].monto += netoFinal;
+                  detallePorFecha[fechaFilaIso].cobrado += cobradoBD;
                 }
               }
             });
-
-            detallePorFecha[fIso] = { archivo: file.name, dia: nombreDiaArchivo, ops: opsArchivo, monto: montoArchivo };
           }
 
           setRutasData(nuevoEstado);
@@ -943,14 +1068,17 @@
             archivosProcesados: files.length,
             filasProcesadas: totalOps,
             montoTotalImportado: totalMonto,
+            montoTotalCobrado: totalCobrado,
+            montoTotalSaldo: totalSaldo,
             clientesIdentificados: clientesExistentesMatch,
             clientesNuevosDadosDeAlta,
             filasOtrasVentas,
             detallePorFecha,
             resumenPorRepartidor
           });
-          mostrarToast(`Importados ${files.length} archivos (${clientesNuevosDadosDeAlta} clientes nuevos dados de alta)`);
+          mostrarToast(`Importados ${files.length} archivos • Total vendido: ${formatARS(totalMonto)}`);
         } catch (err) {
+          console.error(err);
           mostrarToast('Error al leer alguno de los archivos Excel', 'error');
         } finally {
           setProcesandoLoteExcel(false);
