@@ -1,12 +1,12 @@
 <!DOCTYPE html>
 <html lang="es">
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script>
-  const SUPABASE_URL = 'https://japiwmpxttokmijdwvvc.supabase.co/rest/v1/';
-  const SUPABASE_ANON_KEY = 'sb_publishable_7QuOzN0hkaAHAotUkX1A8w_bADCysKb';
-  const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-</script>
 <head>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const SUPABASE_URL = 'https://japiwmpxttokmijdwvvc.supabase.co';
+    const SUPABASE_ANON_KEY = 'sb_publishable_7QuOzN0hkaAHAotUkX1A8w_bADCysKb';
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  </script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
   <title>Buendía Pan — Sistema Comercial y Reparto</title>
@@ -603,11 +603,91 @@
         }
       });
 
+      const [cargandoNube, setCargandoNube] = useState(true);
+      const ignorarProximoGuardadoNube = React.useRef(false);
+
+      useEffect(() => {
+        let canalRealtime = null;
+
+        const inicializarDesdeSupabase = async () => {
+          try {
+            const { data, error } = await supabaseClient
+              .from('estado_empresa')
+              .select('clave, datos');
+
+            if (!error && data && data.length > 0) {
+              const filaRutas = data.find((r) => r.clave === 'rutas_v5');
+              const filaUsuarios = data.find((r) => r.clave === 'usuarios_v1');
+
+              if (filaRutas?.datos) {
+                ignorarProximoGuardadoNube.current = true;
+                setRutasData(filaRutas.datos);
+                localStorage.setItem('bp_rutas_v5_real', JSON.stringify(filaRutas.datos));
+              }
+              if (filaUsuarios?.datos) {
+                setUsuariosSistema(filaUsuarios.datos);
+                localStorage.setItem('bp_usuarios_v1', JSON.stringify(filaUsuarios.datos));
+              }
+            } else if (!error && (!data || data.length === 0)) {
+              await supabaseClient.from('estado_empresa').upsert([
+                { clave: 'rutas_v5', datos: rutasData },
+                { clave: 'usuarios_v1', datos: usuariosSistema }
+              ]);
+            }
+          } catch (err) {
+            console.error('Error conectando con Supabase:', err);
+          } finally {
+            setCargandoNube(false);
+          }
+
+          canalRealtime = supabaseClient
+            .channel('cambios-buendia-pan')
+            .on(
+              'postgres_changes',
+              { event: '*', schema: 'public', table: 'estado_empresa' },
+              (payload) => {
+                const registro = payload.new;
+                if (!registro) return;
+                if (registro.clave === 'rutas_v5' && registro.datos) {
+                  ignorarProximoGuardadoNube.current = true;
+                  setRutasData(registro.datos);
+                  localStorage.setItem('bp_rutas_v5_real', JSON.stringify(registro.datos));
+                }
+                if (registro.clave === 'usuarios_v1' && registro.datos) {
+                  setUsuariosSistema(registro.datos);
+                  localStorage.setItem('bp_usuarios_v1', JSON.stringify(registro.datos));
+                }
+              }
+            )
+            .subscribe();
+        };
+
+        inicializarDesdeSupabase();
+
+        return () => {
+          if (canalRealtime) supabaseClient.removeChannel(canalRealtime);
+        };
+      }, []);
+
       useEffect(() => {
         try {
           localStorage.setItem('bp_rutas_v5_real', JSON.stringify(rutasData));
         } catch {}
-      }, [rutasData]);
+
+        if (cargandoNube) return;
+        if (ignorarProximoGuardadoNube.current) {
+          ignorarProximoGuardadoNube.current = false;
+          return;
+        }
+
+        const timerSync = setTimeout(async () => {
+          await supabaseClient
+            .from('estado_empresa')
+            .upsert({ clave: 'rutas_v5', datos: rutasData, actualizado_en: new Date().toISOString() });
+        }, 600);
+
+        return () => clearTimeout(timerSync);
+      }, [rutasData, cargandoNube]);
 
       const limpiarBaseACero = () => {
         const limpio = crearEstadoInicialRutas();
@@ -1252,6 +1332,7 @@
         const upd = [...usuariosSistema, nuevo];
         setUsuariosSistema(upd);
         localStorage.setItem('bp_usuarios_v1', JSON.stringify(upd));
+        supabaseClient.from('estado_empresa').upsert({ clave: 'usuarios_v1', datos: upd, actualizado_en: new Date().toISOString() }).then(() => {});
         setNuevoUserNombre('');
         setNuevoUserUsuario('');
         setNuevoUserPass('');
@@ -1262,6 +1343,7 @@
         const upd = usuariosSistema.map((u) => (u.id === id ? { ...u, activo: !u.activo } : u));
         setUsuariosSistema(upd);
         localStorage.setItem('bp_usuarios_v1', JSON.stringify(upd));
+        supabaseClient.from('estado_empresa').upsert({ clave: 'usuarios_v1', datos: upd, actualizado_en: new Date().toISOString() }).then(() => {});
       };
 
       // Funciones Móvil
@@ -1335,8 +1417,16 @@
             c.id === clienteActivoId ? { ...c, estado: 'Visitado', ultimaOperacion: op } : c
           )
         }));
+        supabaseClient.from('ventas').insert([{
+          vendedor: `${vendedorObj.nombre} (${rutaActivaId})`,
+          cliente_nombre: clienteModalObj?.nombre || clienteActivoId,
+          detalle_productos: { vendidos: cantidadesVenta, cambios: cantidadesCambio, promo: cantidadesPromo },
+          total_venta: totalVenta - totalCambio,
+          metodo_pago: metodoPago,
+          devoluciones_hongos: cantidadesCambio
+        }]).then(() => {});
         setClienteActivoId(null);
-        mostrarToast('Pedido registrado');
+        mostrarToast('Pedido registrado y sincronizado en la nube');
       };
 
       const marcarSinCompra = (cid) => {
