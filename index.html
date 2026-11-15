@@ -3,371 +3,52 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Importar Planillas de Ventas — Buendía Pan</title>
-  <!-- SheetJS para lectura de archivos .xlsx / .xls en el navegador -->
+  <title>Tablero de Control Comercial — Buendía Pan</title>
+
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- React 18 & Babel Standalone (permite correr JSX directamente en index.html) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <!-- SheetJS (lectura y exportación de Excel .xlsx / .xls) -->
   <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-  <style>
-    :root {
-      --bg-dark: #1b1710;
-      --gold: #f5b82e;
-      --gold-dark: #d99b16;
-      --cream-bg: #fcfaf5;
-      --amber-box-bg: #fbf3e4;
-      --amber-box-border: #ead4aa;
-      --green-box-bg: #e7f8ef;
-      --green-box-border: #86d5ac;
-      --green-text: #0d683b;
-      --green-accent: #10854a;
-      --blue-accent: #1d4ed8;
-      --text-main: #1f2937;
-      --text-muted: #6b7280;
-      --white: #ffffff;
-    }
 
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, Helvetica, Arial, sans-serif;
-    }
-
-    body {
-      background-color: #111827;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      min-height: 100vh;
-      padding: 16px;
-    }
-
-    .modal-card {
-      width: 100%;
-      max-width: 620px;
-      background: var(--cream-bg);
-      border-radius: 16px;
-      overflow: hidden;
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.55);
-    }
-
-    /* Header oscuro estilo Buendía Pan */
-    .modal-header {
-      background: var(--bg-dark);
-      padding: 20px 24px;
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-    }
-
-    .modal-eyebrow {
-      color: var(--gold);
-      font-size: 11px;
-      font-weight: 800;
-      letter-spacing: 0.08em;
-      text-transform: uppercase;
-      margin-bottom: 4px;
-    }
-
-    .modal-title {
-      color: var(--white);
-      font-size: 21px;
-      font-weight: 700;
-      line-height: 1.2;
-    }
-
-    .btn-close {
-      background: rgba(255, 255, 255, 0.12);
-      border: none;
-      color: #d1d5db;
-      width: 34px;
-      height: 34px;
-      border-radius: 50%;
-      font-size: 18px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: background 0.2s;
-    }
-
-    .btn-close:hover {
-      background: rgba(255, 255, 255, 0.24);
-      color: var(--white);
-    }
-
-    .modal-body {
-      padding: 22px 24px 24px;
-      display: flex;
-      flex-direction: column;
-      gap: 18px;
-    }
-
-    /* Caja informativa superior */
-    .info-banner {
-      background: var(--amber-box-bg);
-      border: 1px solid var(--amber-box-border);
-      border-radius: 12px;
-      padding: 14px 16px;
-      font-size: 13.5px;
-      line-height: 1.45;
-      color: #4b3818;
-    }
-
-    .info-banner strong.red {
-      color: #c81e1e;
-    }
-
-    /* Zona de carga (Dropzone) */
-    .dropzone {
-      border: 2px dashed #e2b857;
-      background: #fffdf8;
-      border-radius: 14px;
-      padding: 28px 20px;
-      text-align: center;
-      cursor: pointer;
-      transition: all 0.2s ease;
-    }
-
-    .dropzone:hover,
-    .dropzone.dragover {
-      background: #fef8e7;
-      border-color: var(--gold-dark);
-    }
-
-    .dropzone-title {
-      font-size: 16px;
-      font-weight: 700;
-      color: var(--text-main);
-      margin-bottom: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-    }
-
-    .dropzone-sub {
-      font-size: 13px;
-      color: var(--text-muted);
-    }
-
-    /* Caja de resultado verde */
-    .result-box {
-      display: none;
-      background: var(--green-box-bg);
-      border: 1.5px solid var(--green-box-border);
-      border-radius: 14px;
-      padding: 18px;
-      flex-direction: column;
-      gap: 14px;
-    }
-
-    .result-box.visible {
-      display: flex;
-    }
-
-    .result-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 16px;
-      font-weight: 800;
-      color: var(--green-text);
-    }
-
-    .badge-check {
-      background: #16a34a;
-      color: white;
-      width: 22px;
-      height: 22px;
-      border-radius: 6px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 13px;
-    }
-
-    .summary-card {
-      background: var(--white);
-      border: 1px solid #ccebd9;
-      border-radius: 10px;
-      padding: 14px 16px;
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px 16px;
-      font-size: 14px;
-      color: var(--text-main);
-    }
-
-    .summary-item strong {
-      font-weight: 800;
-      color: #111827;
-    }
-
-    .summary-item strong.blue {
-      color: var(--blue-accent);
-    }
-
-    .vendors-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 10px;
-    }
-
-    .vendor-card {
-      background: var(--white);
-      border: 1px solid #ccebd9;
-      border-radius: 10px;
-      padding: 12px;
-    }
-
-    .vendor-name {
-      font-size: 13px;
-      font-weight: 700;
-      color: var(--text-main);
-      margin-bottom: 4px;
-    }
-
-    .vendor-stats {
-      font-size: 13px;
-      font-weight: 800;
-      color: var(--green-accent);
-    }
-
-    .files-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .file-row {
-      background: var(--white);
-      border: 1px solid #ccebd9;
-      border-radius: 10px;
-      padding: 12px 14px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 12px;
-      font-size: 13.5px;
-    }
-
-    .file-row-left {
-      font-weight: 700;
-      color: var(--text-main);
-    }
-
-    .file-row-right {
-      font-weight: 800;
-      color: var(--green-accent);
-      text-align: right;
-      white-space: nowrap;
-    }
-
-    /* Botón CTA inferior */
-    .btn-primary {
-      width: 100%;
-      background: var(--bg-dark);
-      color: var(--gold);
-      border: none;
-      border-radius: 12px;
-      padding: 15px 20px;
-      font-size: 15px;
-      font-weight: 800;
-      cursor: pointer;
-      transition: opacity 0.2s;
-    }
-
-    .btn-primary:hover {
-      opacity: 0.92;
-    }
-
-    .btn-primary:disabled {
-      opacity: 0.45;
-      cursor: not-allowed;
-    }
-
-    @media (max-width: 540px) {
-      .vendors-grid {
-        grid-template-columns: 1fr;
-      }
-      .summary-card {
-        grid-template-columns: 1fr;
-      }
-    }
-  </style>
+  <!-- Supabase JS Client -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body>
+<body class="bg-[#f7f4ed] text-gray-900">
+  <div id="root"></div>
 
-  <div class="modal-card">
-    <div class="modal-header">
-      <div>
-        <div class="modal-eyebrow">MIGRACIÓN MASIVA EXCEL → BUENDÍA PAN</div>
-        <h1 class="modal-title">Importar Planillas de Ventas (Individual o en Lote)</h1>
-      </div>
-      <button type="button" class="btn-close" id="btnCerrarModal" title="Cerrar">✕</button>
-    </div>
+  <script type="text/babel">
+    const { useState, useEffect, useMemo, useRef } = React;
 
-    <div class="modal-body">
-      <div class="info-banner">
-        Podés seleccionar <strong class="red">todos los archivos del mes juntos</strong> (ej. del 2-11 al 13-11):<br />
-        El sistema detecta la fecha desde el nombre de cada archivo, evita duplicados, actualiza la clasificación (A+ a E) y envía <strong>OTRAS VENTAS</strong> al comodín técnico de cada ruta.
-      </div>
+    // ============================================================================
+    // 1. CONFIGURACIÓN DE SUPABASE (PEGÁ AQUÍ TUS CLAVES DE PROYECTO)
+    // ============================================================================
+    // Tip: también podés guardarlas desde el botón "⚙ Configurar Supabase" en la barra superior
+    const DEFAULT_SUPABASE_URL = localStorage.getItem('bp_supabase_url') || 'https://TU-PROYECTO.supabase.co';
+    const DEFAULT_SUPABASE_ANON_KEY = localStorage.getItem('bp_supabase_key') || 'TU-ANON-KEY-DE-SUPABASE';
 
-      <input type="file" id="inputExcel" accept=".xlsx,.xls" multiple hidden />
+    function crearClienteSupabase(url, key) {
+      if (!url || !key || url.includes('TU-PROYECTO') || key.includes('TU-ANON-KEY')) {
+        return null;
+      }
+      try {
+        return window.supabase.createClient(url, key);
+      } catch (e) {
+        console.error('Error iniciando Supabase:', e);
+        return null;
+      }
+    }
 
-      <div class="dropzone" id="dropzone">
-        <div class="dropzone-title">
-          <span>📂</span> Seleccionar 1 o varios archivos Excel (.xlsx / .xls)
-        </div>
-        <div class="dropzone-sub">
-          Mantené presionado Ctrl / Shift para marcar todos los días de Noviembre
-        </div>
-      </div>
+    // ============================================================================
+    // 2. CONFIGURACIÓN DE CATÁLOGOS Y VENDEDORES — BUENDÍA PAN (TUCUMÁN)
+    // ============================================================================
+    const LIMITE_FILA_CLIENTES = 45; // Fila 45 de Excel (fila 46+ son totales y monedero)
 
-      <!-- Panel de resultados (aparece al procesar archivos) -->
-      <div class="result-box" id="resultBox">
-        <div class="result-header">
-          <span class="badge-check">✓</span>
-          <span id="lblLoteHeader">Lote Importado: 0 archivos Excel</span>
-        </div>
-
-        <div class="summary-card">
-          <div class="summary-item">Ventas Procesadas: <strong id="lblTotalOps">0</strong></div>
-          <div class="summary-item">Monto Total: <strong id="lblTotalMonto">$ 0</strong></div>
-          <div class="summary-item">Comercios Identificados: <strong class="blue" id="lblClientesAltas">+0</strong></div>
-          <div class="summary-item">Otras Ventas: <strong id="lblOtrasVentas">0</strong></div>
-        </div>
-
-        <div class="vendors-grid">
-          <div class="vendor-card">
-            <div class="vendor-name">Gabriel (Vend. A)</div>
-            <div class="vendor-stats" id="lblVendA">0 ops • $ 0</div>
-          </div>
-          <div class="vendor-card">
-            <div class="vendor-name">Facundo (Vend. B)</div>
-            <div class="vendor-stats" id="lblVendB">0 ops • $ 0</div>
-          </div>
-          <div class="vendor-card">
-            <div class="vendor-name">Federico (Vend. C)</div>
-            <div class="vendor-stats" id="lblVendC">0 ops • $ 0</div>
-          </div>
-        </div>
-
-        <div class="files-list" id="filesList"></div>
-      </div>
-
-      <button type="button" class="btn-primary" id="btnVerMatriz" disabled>
-        Cerrar y Ver en Planilla Matriz
-      </button>
-    </div>
-  </div>
-
-  <script>
-    /**
-     * CONFIGURACIÓN DE CATÁLOGO Y REGLAS DE NEGOCIO — BUENDÍA PAN
-     */
-    const LIMITE_FILA_CLIENTES = 45; // Fila 45 de Excel (la fila 46 en adelante son totales y monedero)
-
-    // Precios unitarios de respaldo (solo se usan si la celda H no trae un número válido)
     const PRECIOS_FALLBACK = {
       HA01: 1050, HA02: -1050, HA03: -1050,
       VI01: 1050, VI02: -1050, VI03: -1050,
@@ -383,44 +64,118 @@
       LM01: 3400, LM02: -3400, LM03: -3400,
       PZ01: 950,  PZ02: -950,  PZ03: -950,
       GS01: 5500, GD01: 6000,  GD02: 5500, GD03: 5100,
-      PM01: 3600, PM02: -3600, PM03: -3600
+      PM01: 3600, PM02: -3600, PM03: -3600,
     };
 
-    const DIAS_SEMANA = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+    const CONFIG_VENDEDORES = [
+      {
+        key: 'A',
+        nombre: 'Gabriel (Vendedor A)',
+        nombreCorto: 'GABRIEL',
+        camioneta: 'CAMIONETA 1 • ZONA NORTE / CENTRO',
+        rutaDefault: 'R-7 — San Miguel de Tucumán',
+        objetivosPorDia: { 1: 900000, 2: 950000, 3: 950000, 4: 950000, 5: 1050000, 6: 1000000, 0: 0 },
+      },
+      {
+        key: 'B',
+        nombre: 'Facundo (Vendedor B)',
+        nombreCorto: 'FACUNDO',
+        camioneta: 'CAMIONETA 2 • ZONA ESTE',
+        rutaDefault: 'R-11 — Nuevas Talitas',
+        objetivosPorDia: { 1: 950000, 2: 1000000, 3: 1000000, 4: 1000000, 5: 1100000, 6: 1100000, 0: 0 },
+      },
+      {
+        key: 'C',
+        nombre: 'Federico (Vendedor C)',
+        nombreCorto: 'FEDERICO',
+        camioneta: 'CAMIONETA 3 • ZONA SUR',
+        rutaDefault: 'Día Libre / Logística',
+        objetivosPorDia: { 1: 850000, 2: 900000, 3: 900000, 4: 900000, 5: 950000, 6: 0, 0: 0 },
+      },
+    ];
 
-    function formatearPesos(valor) {
-      return '$ ' + Math.round(valor).toLocaleString('es-AR');
+    const CATALOGO_COLUMNAS = [
+      { key: 'HA01', label: 'HAMB' },
+      { key: 'HA02', label: 'HAMB PR' },
+      { key: 'HA03', label: 'HAMB DEV' },
+      { key: 'VI01', label: 'VIENAS' },
+      { key: 'VI02', label: 'VIEN PR' },
+      { key: 'VI03', label: 'VIEN DEV' },
+      { key: 'PA01', label: 'DOBLE' },
+      { key: 'PE01', label: 'PEBETE' },
+      { key: 'PE02', label: 'PEB PR' },
+      { key: 'HB01', label: 'BRIOCHE' },
+      { key: 'HB02', label: 'BRIO PR' },
+      { key: 'CH01', label: 'CHIPS' },
+      { key: 'SH01', label: 'SUPER H' },
+      { key: 'LB01', label: 'L. BLANCO' },
+      { key: 'LN01', label: 'L. NEGRO' },
+      { key: 'LI01', label: 'L. INTEGRAL' },
+      { key: 'LA01', label: 'L. ANDINO' },
+      { key: 'LM01', label: 'L. MULTI' },
+      { key: 'PZ01', label: 'PIZZETAS' },
+      { key: 'PZ03', label: 'PIZZ DEV' },
+      { key: 'GS01', label: 'SEMOLADA' },
+      { key: 'GD01', label: 'MAICENAS' },
+      { key: 'GD02', label: 'MANTECADOS' },
+      { key: 'GD03', label: 'PALMERITAS' },
+      { key: 'PM01', label: 'MIGA 10F' },
+    ];
+
+    const DIAS_LARGO = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
+
+    // ============================================================================
+    // 3. UTILIDADES DE FECHA, MONEDA Y PARSEO DE PLANILLAS EXCEL
+    // ============================================================================
+    function obtenerFechaLocalISO(date = new Date()) {
+      const y = date.getFullYear();
+      const m = String(date.getMonth() + 1).padStart(2, '0');
+      const d = String(date.getDate()).padStart(2, '0');
+      return `${y}-${m}-${d}`;
     }
 
-    /**
-     * Detecta la fecha desde el nombre del archivo (ej: "ARCHIVO VENTAS NUEVO 14-11-2026.xlsx")
-     */
+    function formatearFechaLarga(fechaISO) {
+      if (!fechaISO) return '';
+      const [y, m, d] = fechaISO.split('-').map(Number);
+      const dt = new Date(y, m - 1, d);
+      const diaNombre = DIAS_LARGO[dt.getDay()] || '';
+      return `${diaNombre} ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
+    }
+
+    function formatearHora(date = new Date()) {
+      const hh = String(date.getHours()).padStart(2, '0');
+      const mm = String(date.getMinutes()).padStart(2, '0');
+      return `${hh}:${mm} hs`;
+    }
+
+    function formatearPesos(valor) {
+      return '$ ' + Math.round(valor || 0).toLocaleString('es-AR');
+    }
+
     function extraerFechaDesdeNombre(fileName) {
       const match = fileName.match(/(\d{1,2})[-_](\d{1,2})[-_](\d{4})/);
       if (!match) {
-        return { iso: 'Sin fecha', etiqueta: fileName };
+        const hoy = obtenerFechaLocalISO();
+        return { iso: hoy, etiqueta: `${formatearFechaLarga(hoy)} (${fileName})` };
       }
       const dia = match[1].padStart(2, '0');
       const mes = match[2].padStart(2, '0');
       const anio = match[3];
+      const iso = `${anio}-${mes}-${dia}`;
       const fechaObj = new Date(Number(anio), Number(mes) - 1, Number(dia));
-      const nombreDia = DIAS_SEMANA[fechaObj.getDay()] || '';
+      const nombreDia = DIAS_LARGO[fechaObj.getDay()] || '';
       return {
-        iso: `${anio}-${mes}-${dia}`,
-        etiqueta: `${nombreDia} ${anio}-${mes}-${dia}`
+        iso,
+        etiqueta: `${nombreDia} ${iso}`,
       };
     }
 
-    /**
-     * Identifica a qué vendedor (A=Gabriel, B=Facundo, C=Federico) pertenece la pestaña
-     */
     function identificarVendedor(sheetName, rows) {
       const sUpper = sheetName.toUpperCase();
       if (sUpper.includes('GABRIEL')) return 'A';
       if (sUpper.includes('FACUNDO')) return 'B';
       if (sUpper.includes('FEDERICO')) return 'C';
 
-      // Respaldo por celda G1 si el nombre de la pestaña no lo indica
       const g1 = String((rows[0] && rows[0][6]) || '').toUpperCase();
       if (g1.includes('GABRIEL')) return 'A';
       if (g1.includes('FACUNDO') || g1.includes('ALEJANDRO')) return 'B';
@@ -428,9 +183,6 @@
       return null;
     }
 
-    /**
-     * Clasificación automática A+ a E según monto de compra por visita
-     */
     function clasificarCliente(monto) {
       if (monto > 200000) return 'A+';
       if (monto >= 100000) return 'A';
@@ -440,9 +192,6 @@
       return 'E';
     }
 
-    /**
-     * PARSER PRINCIPAL DE CADA PESTAÑA DE REPARTO (CORREGIDO)
-     */
     function procesarHojaReparto(sheet, sheetName, fechaISO) {
       const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: null });
       if (!rows || rows.length < 3) return [];
@@ -450,7 +199,7 @@
       const vendedorKey = identificarVendedor(sheetName, rows);
       if (!vendedorKey) return [];
 
-      const headerCodigos = rows[0] || []; // Fila 1: HA01, HA02, HA03, VI01...
+      const headerCodigos = rows[0] || [];
       const operaciones = [];
 
       for (let i = 2; i < rows.length; i++) {
@@ -465,7 +214,7 @@
         const colH_TotalRaw = row[7];
         const colH_Texto = String(colH_TotalRaw ?? '').trim().toUpperCase();
 
-        // 1. CORTE DURO (BREAK): Detener antes de la fila 46 o al detectar fila de totales
+        // 1. CORTE DURO (BREAK): detener antes de fila 46 o al detectar fila de totales
         if (
           numeroFilaExcel > LIMITE_FILA_CLIENTES ||
           colH_Texto.includes('VENTA TOTAL') ||
@@ -474,206 +223,1214 @@
           break;
         }
 
-        // 2. IGNORAR FILAS VACÍAS O DE PLANTILLA ("VER ERROR")
+        // 2. IGNORAR FILAS VACÍAS O DE PLANTILLA
         if (!colG_Cliente || colG_Cliente.toUpperCase() === 'VER ERROR') {
           continue;
         }
 
-        // 3. NORMALIZACIÓN DE "OTRAS VENTAS ()"
+        // 3. NORMALIZAR "OTRAS VENTAS ()"
         const clienteLimpio = colG_Cliente.replace(/\(\s*\)/g, '').trim().toUpperCase();
         const esOtrasVentas = clienteLimpio === 'OTRAS VENTAS';
 
-        // 4. EXTRACCIÓN DE PRODUCTOS Y CÁLCULO DE MONTO
+        // 4. EXTRAER PRODUCTOS Y CALCULAR MONTO
         const items = {};
-        let montoCalculadoFallback = 0;
+        let montoFallback = 0;
 
         for (let c = 8; c <= 53; c++) {
           const codProd = String(headerCodigos[c] ?? '').trim().toUpperCase();
           const cantidad = Number(row[c]);
           if (codProd && !isNaN(cantidad) && cantidad !== 0) {
             items[codProd] = cantidad;
-            montoCalculadoFallback += cantidad * (PRECIOS_FALLBACK[codProd] || 0);
+            montoFallback += cantidad * (PRECIOS_FALLBACK[codProd] || 0);
           }
         }
 
-        const montoNumericoExcel = typeof colH_TotalRaw === 'number'
-          ? colH_TotalRaw
-          : Number(String(colH_TotalRaw ?? '').replace(/[^0-9.-]/g, ''));
+        const montoExcel =
+          typeof colH_TotalRaw === 'number'
+            ? colH_TotalRaw
+            : Number(String(colH_TotalRaw ?? '').replace(/[^0-9.-]/g, ''));
 
-        const montoVenta = !isNaN(montoNumericoExcel) && montoNumericoExcel > 0
-          ? montoNumericoExcel
-          : Math.round(montoCalculadoFallback);
+        const montoVenta =
+          !isNaN(montoExcel) && montoExcel > 0 ? montoExcel : Math.round(montoFallback);
 
         if (montoVenta <= 0 && Object.keys(items).length === 0) {
           continue;
         }
 
-        const montoCobrado = Number(row[55]) || 0; // Columna BD: COBRADO
-        const saldoPendiente = Number(row[56]) || 0; // Columna BE: SALDOS
+        const montoCobrado = Number(row[55]) || 0; // Columna BD
+        const saldoPendiente = Number(row[56]) || 0; // Columna BE
 
         operaciones.push({
+          id: `${fechaISO}-${vendedorKey}-${numeroFilaExcel}`,
           fecha: fechaISO,
           hoja: sheetName,
-          filaExcel: numeroFilaExcel,
           vendedor: vendedorKey, // 'A' = Gabriel, 'B' = Facundo, 'C' = Federico
-          zona: colA_Zona,
-          codigoCompleto: colD_Codigo,
-          codCliente: colE_CodCliente,
-          codReparto: colF_CodReparto,
-          cliente: esOtrasVentas ? `OTRAS VENTAS (${colF_CodReparto || 'RUTA'})` : colG_Cliente,
-          esOtrasVentas,
-          categoriaCliente: clasificarCliente(montoVenta),
+          zona: colA_Zona && colA_Zona !== 'VER UBICACION' ? colA_Zona : 'SIN ZONA',
+          codigo_completo: colD_Codigo || null,
+          cod_cliente: colE_CodCliente ? String(colE_CodCliente) : '501',
+          cod_reparto: colF_CodReparto || null,
+          ruta: colF_CodReparto || null,
+          cliente_nombre: esOtrasVentas
+            ? `COMODIN OTRAS VENTAS (${colF_CodReparto || vendedorKey})`
+            : colG_Cliente,
+          es_otras_ventas: esOtrasVentas,
+          categoria: clasificarCliente(montoVenta),
           monto: montoVenta,
           cobrado: montoCobrado,
           saldo: saldoPendiente,
-          items
+          detalle_productos: items,
         });
       }
 
       return operaciones;
     }
 
-    /**
-     * PROCESAMIENTO DE LOTE COMPLETO DE ARCHIVOS EXCEL
-     */
-    async function procesarArchivos(fileList) {
-      const files = Array.from(fileList).filter(f => /\.(xlsx|xls)$/i.test(f.name));
-      if (!files.length) return;
+    // ============================================================================
+    // 4. MODAL CONFIGURACIÓN DE SUPABASE (PARA GUARDAR TUS CLAVES EN EL NAVEGADOR)
+    // ============================================================================
+    function ConfigSupabaseModal({ isOpen, onClose, urlActual, keyActual, onGuardar }) {
+      const [url, setUrl] = useState(urlActual);
+      const [anonKey, setAnonKey] = useState(keyActual);
 
-      const resumenLote = {
-        archivosCount: files.length,
-        totalOps: 0,
-        totalMonto: 0,
-        comerciosIdentificados: 0,
-        otrasVentasCount: 0,
-        porVendedor: {
-          A: { ops: 0, monto: 0 },
-          B: { ops: 0, monto: 0 },
-          C: { ops: 0, monto: 0 }
-        },
-        archivosDetalle: [],
-        operaciones: []
+      if (!isOpen) return null;
+
+      const handleSubmit = (e) => {
+        e.preventDefault();
+        localStorage.setItem('bp_supabase_url', url.trim());
+        localStorage.setItem('bp_supabase_key', anonKey.trim());
+        onGuardar(url.trim(), anonKey.trim());
+        onClose();
       };
 
-      const clientesUnicos = new Set();
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
+          <div className="w-full max-w-lg overflow-hidden rounded-2xl bg-[#fcfaf5] shadow-2xl">
+            <div className="flex items-center justify-between bg-[#1b1710] px-6 py-4 text-white">
+              <h3 className="text-base font-extrabold text-[#f5b82e]">
+                ⚙ Conexión a Supabase — Buendía Pan
+              </h3>
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-gray-300 hover:bg-white/20"
+              >
+                ✕
+              </button>
+            </div>
+            <form onSubmit={handleSubmit} className="space-y-4 p-6 text-sm">
+              <p className="text-xs text-gray-600">
+                Pegá tu <strong>Project URL</strong> y <strong>anon public key</strong> de Supabase (o editalas directo en las líneas 24-25 de <code>index.html</code>). Si no configurás Supabase, la app funciona igual guardando los datos en tu navegador.
+              </p>
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-700">Supabase URL</label>
+                <input
+                  type="text"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  placeholder="https://xxxxx.supabase.co"
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs font-mono"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-700">Supabase Anon Key</label>
+                <input
+                  type="text"
+                  value={anonKey}
+                  onChange={(e) => setAnonKey(e.target.value)}
+                  placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6..."
+                  className="mt-1 w-full rounded-xl border border-gray-300 bg-white px-3.5 py-2 text-xs font-mono"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-xl bg-gray-200 px-4 py-2 text-xs font-bold text-gray-800"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="rounded-xl bg-[#1b1710] px-5 py-2 text-xs font-extrabold text-[#f5b82e]"
+                >
+                  Guardar Conexión
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      );
+    }
 
-      for (const file of files) {
-        const buffer = await file.arrayBuffer();
-        const workbook = XLSX.read(buffer, { type: 'array' });
-        const fechaInfo = extraerFechaDesdeNombre(file.name);
+    // ============================================================================
+    // 5. MODAL IMPORTADOR DE PLANILLAS EXCEL -> SUPABASE / LOCALSTORAGE
+    // ============================================================================
+    function ImportadorVentasModal({ isOpen, onClose, supabaseClient, onImportSuccess }) {
+      const [procesando, setProcesando] = useState(false);
+      const [dragOver, setDragOver] = useState(false);
+      const [resumen, setResumen] = useState(null);
+      const [errorMsg, setErrorMsg] = useState('');
+      const inputRef = useRef(null);
 
-        let opsArchivo = 0;
-        let montoArchivo = 0;
+      if (!isOpen) return null;
 
-        for (const sheetName of workbook.SheetNames) {
-          const sheet = workbook.Sheets[sheetName];
-          const sUpper = sheetName.toUpperCase();
+      const guardarOperaciones = async (operacionesLote) => {
+        if (!operacionesLote.length) return { insertadas: 0, omitidas: 0, modo: 'local' };
+        const fechasUnicas = [...new Set(operacionesLote.map((o) => o.fecha))];
+        const ultimaFecha = fechasUnicas[fechasUnicas.length - 1];
 
-          // Solo procesamos pestañas visibles de reparto (ej. REPARTO GABRIEL-14, REPARTO FACUNDO-14)
-          if (!sUpper.startsWith('REPARTO')) continue;
+        // Siempre respaldamos en localStorage por fecha para respuesta instantánea
+        const cacheActual = JSON.parse(localStorage.getItem('bp_ventas_cache') || '[]');
+        const firmasCache = new Set(
+          cacheActual.map((e) => `${e.fecha}|${e.vendedor}|${String(e.cliente_nombre).toUpperCase()}|${Number(e.monto)}`)
+        );
+        const nuevasParaCache = operacionesLote.filter((op) => {
+          const firma = `${op.fecha}|${op.vendedor}|${op.cliente_nombre.toUpperCase()}|${op.monto}`;
+          return !firmasCache.has(firma);
+        });
+        localStorage.setItem('bp_ventas_cache', JSON.stringify([...cacheActual, ...nuevasParaCache]));
 
-          const opsHoja = procesarHojaReparto(sheet, sheetName, fechaInfo.iso);
+        // Si Supabase está configurado, sincronizamos también con la nube
+        if (!supabaseClient) {
+          return {
+            insertadas: nuevasParaCache.length,
+            omitidas: operacionesLote.length - nuevasParaCache.length,
+            ultimaFecha,
+            modo: 'local',
+          };
+        }
 
-          for (const op of opsHoja) {
-            resumenLote.operaciones.push(op);
-            resumenLote.totalOps += 1;
-            resumenLote.totalMonto += op.monto;
-
-            opsArchivo += 1;
-            montoArchivo += op.monto;
-
-            resumenLote.porVendedor[op.vendedor].ops += 1;
-            resumenLote.porVendedor[op.vendedor].monto += op.monto;
-
-            if (op.esOtrasVentas) {
-              resumenLote.otrasVentasCount += 1;
-            } else {
-              clientesUnicos.add(op.cliente.toUpperCase());
-            }
+        // A. Upsert en `clientes`
+        const mapaClientes = new Map();
+        for (const op of operacionesLote) {
+          if (op.es_otras_ventas) continue;
+          const claveCliente = op.cliente_nombre.toUpperCase();
+          const existente = mapaClientes.get(claveCliente);
+          if (!existente || op.monto > existente.ultima_compra) {
+            mapaClientes.set(claveCliente, {
+              nombre: op.cliente_nombre,
+              codigo_cliente: op.cod_cliente !== '501' ? `C-${op.cod_cliente}` : null,
+              ruta: op.cod_reparto,
+              zona: op.zona,
+              vendedor_asignado: op.vendedor,
+              categoria: op.categoria,
+              ultima_compra: op.monto,
+            });
           }
         }
 
-        resumenLote.archivosDetalle.push({
-          nombre: file.name,
-          fechaEtiqueta: fechaInfo.etiqueta,
-          ops: opsArchivo,
-          monto: montoArchivo
+        const listaClientes = Array.from(mapaClientes.values()).map(({ ultima_compra, ...rest }) => rest);
+        if (listaClientes.length > 0) {
+          const { error: cliError } = await supabaseClient
+            .from('clientes')
+            .upsert(listaClientes, { onConflict: 'nombre' });
+          if (cliError) throw new Error(`Error al actualizar clientes en Supabase: ${cliError.message}`);
+        }
+
+        // B. Deduplicar e insertar en `ventas`
+        const { data: existentes, error: fetchError } = await supabaseClient
+          .from('ventas')
+          .select('fecha, vendedor, cliente_nombre, monto')
+          .in('fecha', fechasUnicas);
+
+        if (fetchError) throw new Error(`Error verificando duplicados: ${fetchError.message}`);
+
+        const firmasExistentes = new Set(
+          (existentes || []).map(
+            (e) => `${e.fecha}|${e.vendedor}|${String(e.cliente_nombre).toUpperCase()}|${Number(e.monto)}`
+          )
+        );
+
+        const nuevasVentas = operacionesLote
+          .filter((op) => {
+            const firma = `${op.fecha}|${op.vendedor}|${op.cliente_nombre.toUpperCase()}|${op.monto}`;
+            return !firmasExistentes.has(firma);
+          })
+          .map((op) => ({
+            fecha: op.fecha,
+            vendedor: op.vendedor,
+            ruta: op.cod_reparto,
+            zona: op.zona,
+            cliente_nombre: op.cliente_nombre,
+            es_otras_ventas: op.es_otras_ventas,
+            monto: op.monto,
+            cobrado: op.cobrado,
+            saldo: op.saldo,
+            detalle_productos: op.detalle_productos,
+            hoja_origen: op.hoja,
+          }));
+
+        if (nuevasVentas.length > 0) {
+          const { error: insertError } = await supabaseClient.from('ventas').insert(nuevasVentas);
+          if (insertError) throw new Error(`Error al insertar ventas: ${insertError.message}`);
+        }
+
+        return {
+          insertadas: nuevasVentas.length,
+          omitidas: operacionesLote.length - nuevasVentas.length,
+          ultimaFecha,
+          modo: 'supabase',
+        };
+      };
+
+      const manejarArchivos = async (fileList) => {
+        const files = Array.from(fileList || []).filter((f) => /\.(xlsx|xls)$/i.test(f.name));
+        if (!files.length) return;
+
+        setProcesando(true);
+        setErrorMsg('');
+
+        try {
+          const lote = {
+            archivosCount: files.length,
+            totalOps: 0,
+            totalMonto: 0,
+            comerciosIdentificados: 0,
+            otrasVentasCount: 0,
+            porVendedor: {
+              A: { ops: 0, monto: 0 },
+              B: { ops: 0, monto: 0 },
+              C: { ops: 0, monto: 0 },
+            },
+            archivosDetalle: [],
+            operaciones: [],
+          };
+
+          const clientesUnicos = new Set();
+
+          for (const file of files) {
+            const buffer = await file.arrayBuffer();
+            const workbook = XLSX.read(buffer, { type: 'array' });
+            const fechaInfo = extraerFechaDesdeNombre(file.name);
+
+            let opsArchivo = 0;
+            let montoArchivo = 0;
+
+            for (const sheetName of workbook.SheetNames) {
+              if (!sheetName.toUpperCase().startsWith('REPARTO')) continue;
+              const opsHoja = procesarHojaReparto(workbook.Sheets[sheetName], sheetName, fechaInfo.iso);
+
+              for (const op of opsHoja) {
+                lote.operaciones.push(op);
+                lote.totalOps += 1;
+                lote.totalMonto += op.monto;
+                opsArchivo += 1;
+                montoArchivo += op.monto;
+
+                lote.porVendedor[op.vendedor].ops += 1;
+                lote.porVendedor[op.vendedor].monto += op.monto;
+
+                if (op.es_otras_ventas) {
+                  lote.otrasVentasCount += 1;
+                } else {
+                  clientesUnicos.add(op.cliente_nombre.toUpperCase());
+                }
+              }
+            }
+
+            lote.archivosDetalle.push({
+              nombre: file.name,
+              fechaEtiqueta: fechaInfo.etiqueta,
+              ops: opsArchivo,
+              monto: montoArchivo,
+            });
+          }
+
+          lote.comerciosIdentificados = clientesUnicos.size;
+          const syncStats = await guardarOperaciones(lote.operaciones);
+          lote.syncStats = syncStats;
+
+          setResumen(lote);
+          if (onImportSuccess) onImportSuccess(lote);
+        } catch (err) {
+          setErrorMsg(err.message || 'Ocurrió un error al procesar el archivo.');
+        } finally {
+          setProcesando(false);
+          if (inputRef.current) inputRef.current.value = '';
+        }
+      };
+
+      return (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-4">
+          <div className="w-full max-w-xl overflow-hidden rounded-2xl bg-[#fcfaf5] shadow-2xl">
+            <div className="flex items-start justify-between bg-[#1b1710] px-6 py-5">
+              <div>
+                <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#f5b82e]">
+                  MIGRACIÓN MASIVA EXCEL → BUENDÍA PAN
+                </p>
+                <h2 className="mt-1 text-xl font-bold text-white">
+                  Importar Planillas de Ventas (Individual o en Lote)
+                </h2>
+              </div>
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex h-8 w-8 items-center justify-center rounded-full bg-white/10 text-gray-300 hover:bg-white/20 hover:text-white"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4 p-6">
+              <div className="rounded-xl border border-[#ead4aa] bg-[#fbf3e4] p-3.5 text-sm leading-relaxed text-[#4b3818]">
+                Podés seleccionar <strong className="text-red-700">todos los archivos del mes juntos</strong> (ej. del 2-11 al 14-11):
+                <br />
+                El sistema detecta la fecha desde el nombre de cada archivo, evita duplicados, actualiza la clasificación (A+ a E) y envía <strong>OTRAS VENTAS</strong> al comodín técnico de cada ruta.
+              </div>
+
+              <input
+                ref={inputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                multiple
+                className="hidden"
+                onChange={(e) => manejarArchivos(e.target.files)}
+              />
+
+              <div
+                onClick={() => !procesando && inputRef.current?.click()}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragOver(true);
+                }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragOver(false);
+                  if (!procesando) manejarArchivos(e.dataTransfer.files);
+                }}
+                className={`cursor-pointer rounded-xl border-2 border-dashed p-7 text-center transition ${
+                  dragOver
+                    ? 'border-[#d99b16] bg-[#fef8e7]'
+                    : 'border-[#e2b857] bg-[#fffdf8] hover:bg-[#fef8e7]'
+                }`}
+              >
+                <p className="text-base font-bold text-gray-800">
+                  {procesando
+                    ? '⏳ Procesando planillas y guardando datos...'
+                    : '📂 Seleccionar 1 o varios archivos Excel (.xlsx / .xls)'}
+                </p>
+                <p className="mt-1 text-xs text-gray-500">
+                  Mantené presionado Ctrl / Shift para marcar todos los días de Noviembre
+                </p>
+              </div>
+
+              {errorMsg && (
+                <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm font-medium text-red-800">
+                  ⚠️ {errorMsg}
+                </div>
+              )}
+
+              {resumen && (
+                <div className="space-y-3 rounded-xl border border-[#86d5ac] bg-[#e7f8ef] p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 font-extrabold text-[#0d683b]">
+                      <span className="inline-flex h-5 w-5 items-center justify-center rounded bg-green-600 text-xs text-white">
+                        ✓
+                      </span>
+                      <span>
+                        Lote Importado: {resumen.archivosCount}{' '}
+                        {resumen.archivosCount === 1 ? 'archivo Excel' : 'archivos Excel'}
+                      </span>
+                    </div>
+                    {resumen.syncStats && (
+                      <span className="text-xs font-semibold text-green-800">
+                        {resumen.syncStats.modo === 'supabase' ? 'Supabase' : 'Local'}:{' '}
+                        {resumen.syncStats.insertadas} nuevas • {resumen.syncStats.omitidas} duplicadas
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2.5 rounded-lg border border-[#ccebd9] bg-white p-3.5 text-sm text-gray-800">
+                    <div>
+                      Ventas Procesadas: <strong>{resumen.totalOps}</strong>
+                    </div>
+                    <div>
+                      Monto Total: <strong>{formatearPesos(resumen.totalMonto)}</strong>
+                    </div>
+                    <div>
+                      Comercios Identificados:{' '}
+                      <strong className="text-blue-700">+{resumen.comerciosIdentificados}</strong>
+                    </div>
+                    <div>
+                      Otras Ventas: <strong>{resumen.otrasVentasCount}</strong>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2.5">
+                    <div className="rounded-lg border border-[#ccebd9] bg-white p-3">
+                      <div className="text-xs font-bold text-gray-700">Gabriel (Vend. A)</div>
+                      <div className="mt-1 text-xs font-extrabold text-[#10854a]">
+                        {resumen.porVendedor.A.ops} ops • {formatearPesos(resumen.porVendedor.A.monto)}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-[#ccebd9] bg-white p-3">
+                      <div className="text-xs font-bold text-gray-700">Facundo (Vend. B)</div>
+                      <div className="mt-1 text-xs font-extrabold text-[#10854a]">
+                        {resumen.porVendedor.B.ops} ops • {formatearPesos(resumen.porVendedor.B.monto)}
+                      </div>
+                    </div>
+                    <div className="rounded-lg border border-[#ccebd9] bg-white p-3">
+                      <div className="text-xs font-bold text-gray-700">Federico (Vend. C)</div>
+                      <div className="mt-1 text-xs font-extrabold text-[#10854a]">
+                        {resumen.porVendedor.C.ops} ops • {formatearPesos(resumen.porVendedor.C.monto)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    {resumen.archivosDetalle.map((arch, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-center justify-between rounded-lg border border-[#ccebd9] bg-white px-3.5 py-2.5 text-xs"
+                      >
+                        <span className="font-bold text-gray-800">
+                          📅 {arch.fechaEtiqueta} ({arch.nombre})
+                        </span>
+                        <span className="font-extrabold text-[#10854a]">
+                          {arch.ops} ops • {formatearPesos(arch.monto)}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={onClose}
+                className="w-full rounded-xl bg-[#1b1710] py-3.5 text-sm font-extrabold text-[#f5b82e] transition hover:opacity-90"
+              >
+                {resumen ? 'Cerrar y Ver en Tablero' : 'Cancelar'}
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ============================================================================
+    // 6. APLICACIÓN PRINCIPAL — TABLERO COMERCIAL BUENDÍA PAN
+    // ============================================================================
+    function App() {
+      const [supaUrl, setSupaUrl] = useState(DEFAULT_SUPABASE_URL);
+      const [supaKey, setSupaKey] = useState(DEFAULT_SUPABASE_ANON_KEY);
+      const supabaseClient = useMemo(() => crearClienteSupabase(supaUrl, supaKey), [supaUrl, supaKey]);
+
+      const [fechaSeleccionada, setFechaSeleccionada] = useState(() => obtenerFechaLocalISO());
+      const [horaActual, setHoraActual] = useState(() => formatearHora());
+      const [filtroFlota, setFiltroFlota] = useState('ALL');
+      const [ventasDia, setVentasDia] = useState([]);
+      const [cargando, setCargando] = useState(false);
+      const [vendedorDetalleKey, setVendedorDetalleKey] = useState(null);
+      const [modalImportadorAbierto, setModalImportadorAbierto] = useState(false);
+      const [modalConfigAbierto, setModalConfigAbierto] = useState(false);
+
+      const hoyISO = useMemo(() => obtenerFechaLocalISO(), []);
+      const esHoy = fechaSeleccionada === hoyISO;
+
+      // Reloj en vivo cada 30 segundos
+      useEffect(() => {
+        const timer = setInterval(() => setHoraActual(formatearHora()), 30000);
+        return () => clearInterval(timer);
+      }, []);
+
+      // Cargar ventas del día desde Supabase (o desde caché local si Supabase aún no está configurado)
+      const cargarVentasFecha = async (fechaISO) => {
+        setCargando(true);
+        try {
+          if (supabaseClient) {
+            const { data, error } = await supabaseClient
+              .from('ventas')
+              .select('*')
+              .eq('fecha', fechaISO)
+              .order('id', { ascending: true });
+
+            if (error) throw error;
+            setVentasDia(data || []);
+          } else {
+            const cache = JSON.parse(localStorage.getItem('bp_ventas_cache') || '[]');
+            setVentasDia(cache.filter((v) => v.fecha === fechaISO));
+          }
+        } catch (err) {
+          console.error('Error cargando ventas del día:', err);
+          const cache = JSON.parse(localStorage.getItem('bp_ventas_cache') || '[]');
+          setVentasDia(cache.filter((v) => v.fecha === fechaISO));
+        } finally {
+          setCargando(false);
+        }
+      };
+
+      useEffect(() => {
+        cargarVentasFecha(fechaSeleccionada);
+        setVendedorDetalleKey(null);
+      }, [fechaSeleccionada, supabaseClient]);
+
+      // Botón "Limpiar a $ 0" para la fecha activa
+      const handleLimpiarDia = async () => {
+        const ok = window.confirm(
+          `¿Seguro que querés borrar todas las ventas del ${formatearFechaLarga(fechaSeleccionada)} y dejar el día en $ 0?`
+        );
+        if (!ok) return;
+
+        try {
+          if (supabaseClient) {
+            const { error } = await supabaseClient.from('ventas').delete().eq('fecha', fechaSeleccionada);
+            if (error) throw error;
+          }
+          const cache = JSON.parse(localStorage.getItem('bp_ventas_cache') || '[]');
+          localStorage.setItem(
+            'bp_ventas_cache',
+            JSON.stringify(cache.filter((v) => v.fecha !== fechaSeleccionada))
+          );
+          setVentasDia([]);
+          setVendedorDetalleKey(null);
+        } catch (err) {
+          alert(`No se pudo limpiar la fecha: ${err.message}`);
+        }
+      };
+
+      const diaSemanaSeleccionado = useMemo(() => {
+        const [y, m, d] = fechaSeleccionada.split('-').map(Number);
+        return new Date(y, m - 1, d).getDay();
+      }, [fechaSeleccionada]);
+
+      // Cálculo por vendedor (incluye todas las operaciones del día, incluso C-501)
+      const resumenPorVendedor = useMemo(() => {
+        return CONFIG_VENDEDORES.map((cfg) => {
+          const opsVendedor = ventasDia.filter((v) => v.vendedor === cfg.key);
+          const totalOps = opsVendedor.length;
+
+          const comerciosUnicos = new Set(
+            opsVendedor
+              .filter((v) => !v.es_otras_ventas)
+              .map((v) => String(v.cliente_nombre || '').trim().toUpperCase())
+          ).size;
+
+          const facturacionNeta = opsVendedor.reduce((acc, v) => acc + (Number(v.monto) || 0), 0);
+          const totalCobrado = opsVendedor.reduce((acc, v) => acc + (Number(v.cobrado) || 0), 0);
+          const saldoPendiente = opsVendedor.reduce((acc, v) => acc + (Number(v.saldo) || 0), 0);
+
+          const rutasDetectadas = [...new Set(opsVendedor.map((v) => v.ruta).filter(Boolean))];
+          const rutaTexto = rutasDetectadas.length > 0 ? rutasDetectadas.join(' / ') : cfg.rutaDefault;
+
+          const objetivo = cfg.objetivosPorDia[diaSemanaSeleccionado] || 0;
+          const pctObjetivo = objetivo > 0 ? Math.round((facturacionNeta / objetivo) * 100) : 0;
+          const pctRuta = totalOps > 0 ? Math.round((comerciosUnicos / totalOps) * 100) : 0;
+
+          return {
+            ...cfg,
+            ops: opsVendedor,
+            totalOps,
+            comerciosUnicos,
+            pctRuta,
+            facturacionNeta,
+            totalCobrado,
+            saldoPendiente,
+            rutaTexto,
+            objetivo,
+            pctObjetivo,
+          };
         });
-      }
+      }, [ventasDia, diaSemanaSeleccionado]);
 
-      resumenLote.comerciosIdentificados = clientesUnicos.size;
-      renderizarResultados(resumenLote);
+      // Exportar consolidado del día (1 pestaña por vendedor + Resumen General)
+      const handleExportarConsolidadoDia = () => {
+        if (ventasDia.length === 0) {
+          alert('No hay ventas cargadas en esta fecha para exportar.');
+          return;
+        }
 
-      // Exponer resultado global y persistir para la Planilla Matriz / Supabase
-      window.ultimoLoteImportado = resumenLote;
-      localStorage.setItem('buendia_ultimo_lote', JSON.stringify(resumenLote));
-      window.dispatchEvent(new CustomEvent('buendia:lote-importado', { detail: resumenLote }));
+        const wb = XLSX.utils.book_new();
+        const resumenRows = [
+          ['BUENDÍA PAN — RESUMEN CONSOLIDADO DEL DÍA'],
+          ['FECHA:', fechaSeleccionada],
+          [],
+          ['VENDEDOR', 'RUTA', 'OPERACIONES', 'COMERCIOS', 'TOTAL VENDIDO', 'COBRADO', 'SALDO PENDIENTE'],
+          ...resumenPorVendedor.map((v) => [
+            v.nombre,
+            v.rutaTexto,
+            v.totalOps,
+            v.comerciosUnicos,
+            v.facturacionNeta,
+            v.totalCobrado,
+            v.saldoPendiente,
+          ]),
+        ];
+        const wsResumen = XLSX.utils.aoa_to_sheet(resumenRows);
+        wsResumen['!cols'] = [{ wch: 24 }, { wch: 26 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 16 }, { wch: 16 }];
+        XLSX.utils.book_append_sheet(wb, wsResumen, 'RESUMEN DIA');
+
+        for (const v of resumenPorVendedor) {
+          if (v.ops.length === 0) continue;
+          const cods = new Set();
+          v.ops.forEach((op) =>
+            Object.entries(op.detalle_productos || {}).forEach(([k, val]) => {
+              if (Number(val) !== 0) cods.add(k.toUpperCase());
+            })
+          );
+          const cols = CATALOGO_COLUMNAS.filter((c) => cods.has(c.key));
+
+          const aoa = [
+            [`REPARTO ${v.nombreCorto} — ${fechaSeleccionada}`],
+            [],
+            ['#', 'ZONA', 'RUTA', 'CLIENTE', 'TOTAL VENTA', 'COBRADO', 'SALDO', ...cols.map((c) => c.label)],
+            ...v.ops.map((op, idx) => [
+              idx + 1,
+              op.zona || '',
+              op.ruta || '',
+              op.cliente_nombre || '',
+              Number(op.monto) || 0,
+              Number(op.cobrado) || 0,
+              Number(op.saldo) || 0,
+              ...cols.map((c) => Number((op.detalle_productos || {})[c.key]) || 0),
+            ]),
+          ];
+          const wsV = XLSX.utils.aoa_to_sheet(aoa);
+          wsV['!cols'] = [{ wch: 5 }, { wch: 16 }, { wch: 10 }, { wch: 36 }, { wch: 15 }, { wch: 15 }, { wch: 14 }, ...cols.map(() => ({ wch: 11 }))];
+          XLSX.utils.book_append_sheet(wb, wsV, `REPARTO ${v.nombreCorto}`.slice(0, 31));
+        }
+
+        XLSX.writeFile(wb, `CONSOLIDADO_BUENDIA_PAN_${fechaSeleccionada}.xlsx`);
+      };
+
+      const vendedoresVisibles =
+        filtroFlota === 'ALL'
+          ? resumenPorVendedor
+          : resumenPorVendedor.filter((v) => v.key === filtroFlota);
+
+      const vendedorActivo = useMemo(
+        () => resumenPorVendedor.find((v) => v.key === vendedorDetalleKey) || null,
+        [resumenPorVendedor, vendedorDetalleKey]
+      );
+
+      const columnasActivasExcel = useMemo(() => {
+        if (!vendedorActivo) return [];
+        const codigosConMovimiento = new Set();
+        for (const op of vendedorActivo.ops) {
+          const det = op.detalle_productos || {};
+          Object.entries(det).forEach(([k, val]) => {
+            if (Number(val) !== 0) codigosConMovimiento.add(k.toUpperCase());
+          });
+        }
+        const conocidas = CATALOGO_COLUMNAS.filter((c) => codigosConMovimiento.has(c.key));
+        const extras = [...codigosConMovimiento]
+          .filter((k) => !CATALOGO_COLUMNAS.some((c) => c.key === k))
+          .map((k) => ({ key: k, label: k }));
+        return [...conocidas, ...extras];
+      }, [vendedorActivo]);
+
+      // Exportar planilla individual del vendedor seleccionado a .xlsx
+      const handleExportarPlanillaVendedor = () => {
+        if (!vendedorActivo || vendedorActivo.ops.length === 0) return;
+
+        const filaMeta = [
+          'BUENDÍA PAN',
+          `VENDEDOR: ${vendedorActivo.nombreCorto}`,
+          `FECHA: ${fechaSeleccionada}`,
+          `RUTA: ${vendedorActivo.rutaTexto}`,
+        ];
+        const filaCodigos = ['', '', '', '', '', '', '', ...columnasActivasExcel.map((c) => c.key)];
+        const filaHeaders = [
+          '#',
+          'ZONA',
+          'RUTA',
+          'CLIENTE',
+          'TOTAL VENTA',
+          'COBRADO',
+          'SALDO',
+          ...columnasActivasExcel.map((c) => c.label),
+        ];
+
+        const filasClientes = vendedorActivo.ops.map((op, idx) => {
+          const det = op.detalle_productos || {};
+          return [
+            idx + 1,
+            op.zona || '',
+            op.ruta || '',
+            op.cliente_nombre || '',
+            Number(op.monto) || 0,
+            Number(op.cobrado) || 0,
+            Number(op.saldo) || 0,
+            ...columnasActivasExcel.map((c) => Number(det[c.key]) || 0),
+          ];
+        });
+
+        const filaTotales = [
+          '',
+          '',
+          '',
+          `TOTALES DEL REPARTO (${vendedorActivo.totalOps} ops)`,
+          vendedorActivo.facturacionNeta,
+          vendedorActivo.totalCobrado,
+          vendedorActivo.saldoPendiente,
+          ...columnasActivasExcel.map((c) =>
+            vendedorActivo.ops.reduce(
+              (acc, op) => acc + (Number((op.detalle_productos || {})[c.key]) || 0),
+              0
+            )
+          ),
+        ];
+
+        const aoa = [filaMeta, [], filaCodigos, filaHeaders, ...filasClientes, [], filaTotales];
+        const ws = XLSX.utils.aoa_to_sheet(aoa);
+        ws['!cols'] = [
+          { wch: 5 },
+          { wch: 16 },
+          { wch: 10 },
+          { wch: 36 },
+          { wch: 15 },
+          { wch: 15 },
+          { wch: 14 },
+          ...columnasActivasExcel.map(() => ({ wch: 11 })),
+        ];
+
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, `REPARTO ${vendedorActivo.nombreCorto}`.slice(0, 31));
+        XLSX.writeFile(wb, `REPARTO_${vendedorActivo.nombreCorto}_${fechaSeleccionada}.xlsx`);
+      };
+
+      const handleImportSuccess = (lote) => {
+        const fechaImportada = lote?.syncStats?.ultimaFecha;
+        if (fechaImportada && fechaImportada !== fechaSeleccionada) {
+          setFechaSeleccionada(fechaImportada);
+        } else {
+          cargarVentasFecha(fechaSeleccionada);
+        }
+      };
+
+      return (
+        <div className="min-h-screen bg-[#f7f4ed] text-gray-900">
+          {/* Barra superior roja institucional */}
+          <header className="flex flex-wrap items-center justify-between gap-3 bg-[#b91c1c] px-6 py-3 text-white shadow">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f5b82e] font-black text-[#1b1710]">
+                BP
+              </div>
+              <div>
+                <div className="text-base font-black tracking-wide">BUENDÍA PAN</div>
+                <div className="text-[11px] font-semibold tracking-wider text-red-100">
+                  TUCUMÁN • REPARTO
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={handleLimpiarDia}
+                className="rounded-lg bg-[#7f1d1d] px-3.5 py-2 text-xs font-bold text-white transition hover:bg-[#991b1b]"
+              >
+                Limpiar a $ 0
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalImportadorAbierto(true)}
+                className="rounded-lg bg-[#f5b82e] px-4 py-2 text-xs font-extrabold text-[#1b1710] shadow transition hover:bg-[#eab308]"
+              >
+                Importar Excel Diario
+              </button>
+              <button
+                type="button"
+                onClick={handleExportarConsolidadoDia}
+                className="rounded-lg bg-[#991b1b] px-3.5 py-2 text-xs font-bold text-white transition hover:bg-[#7f1d1d]"
+              >
+                ⬇ Exportar Excel / BI
+              </button>
+              <button
+                type="button"
+                onClick={() => setModalConfigAbierto(true)}
+                className="rounded-lg bg-[#7f1d1d] px-3 py-2 text-xs font-bold text-amber-200 transition hover:bg-black/40"
+                title="Configurar conexión Supabase"
+              >
+                ⚙ {supabaseClient ? 'Supabase OK' : 'Conectar Supabase'}
+              </button>
+            </div>
+          </header>
+
+          <main className="mx-auto max-w-7xl space-y-6 p-6">
+            {/* Panel superior: Fecha única con calendario + Hora en vivo + Filtro de Flota */}
+            <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="text-xl font-extrabold text-gray-900">
+                    Tablero de Control Comercial — Buendía Pan
+                  </h1>
+
+                  <div className="inline-flex items-center gap-2 rounded-full bg-[#1b1710] px-4 py-1.5 text-xs font-extrabold text-[#f5b82e]">
+                    <span>🕒 {esHoy ? 'HOY:' : 'FECHA:'}</span>
+                    <span>{formatearFechaLarga(fechaSeleccionada)}</span>
+                    <span>• {horaActual}</span>
+                  </div>
+                </div>
+
+                <div className="inline-flex rounded-xl border border-gray-200 bg-[#faf7f0] p-1 text-xs font-bold">
+                  {[
+                    { id: 'ALL', label: 'Toda la Flota' },
+                    { id: 'A', label: 'Vendedor A' },
+                    { id: 'B', label: 'Vendedor B' },
+                    { id: 'C', label: 'Vendedor C' },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setFiltroFlota(tab.id)}
+                      className={`rounded-lg px-3.5 py-1.5 transition ${
+                        filtroFlota === tab.id
+                          ? 'bg-[#b91c1c] text-white shadow-sm'
+                          : 'text-gray-700 hover:bg-white'
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Barra única de Fecha con Calendario */}
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-4 border-t border-gray-100 pt-4">
+                <div className="flex flex-wrap items-center gap-3">
+                  <label
+                    htmlFor="selectorFechaTablero"
+                    className="text-xs font-bold uppercase tracking-wide text-gray-500"
+                  >
+                    Seleccionar fecha de reparto:
+                  </label>
+                  <input
+                    id="selectorFechaTablero"
+                    type="date"
+                    value={fechaSeleccionada}
+                    onChange={(e) => e.target.value && setFechaSeleccionada(e.target.value)}
+                    className="cursor-pointer rounded-xl border-2 border-[#1b1710] bg-[#fcfaf5] px-4 py-2 text-sm font-extrabold text-gray-900 shadow-sm focus:border-[#b91c1c] focus:outline-none"
+                  />
+                  {!esHoy && (
+                    <button
+                      type="button"
+                      onClick={() => setFechaSeleccionada(hoyISO)}
+                      className="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-extrabold text-amber-900 hover:bg-amber-200"
+                    >
+                      Volver a Hoy
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-2 text-xs font-semibold text-gray-600">
+                  <span>
+                    Visualizando jornada:{' '}
+                    <strong className="text-red-700">{formatearFechaLarga(fechaSeleccionada)}</strong>
+                  </span>
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 font-extrabold text-emerald-800">
+                    • EN VIVO ({horaActual})
+                  </span>
+                </div>
+              </div>
+            </section>
+
+            {/* Encabezado de sección */}
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-sm font-extrabold uppercase tracking-wider text-gray-800">
+                🚚 RESULTADOS POR VENDEDOR — {formatearFechaLarga(fechaSeleccionada).toUpperCase()} ({horaActual.toUpperCase()})
+              </h2>
+              <span className="text-xs font-semibold text-gray-500">
+                💡 Hacé clic sobre cualquier vendedor para abrir su planilla detallada tipo Excel
+              </span>
+            </div>
+
+            {/* Tarjetas por Vendedor */}
+            {cargando ? (
+              <div className="rounded-2xl border border-gray-200 bg-white p-10 text-center text-sm font-bold text-gray-500">
+                ⏳ Cargando ventas del {formatearFechaLarga(fechaSeleccionada)}...
+              </div>
+            ) : (
+              <section className="grid grid-cols-1 gap-5 md:grid-cols-3">
+                {vendedoresVisibles.map((v) => {
+                  const cumplioMeta = v.objetivo > 0 && v.facturacionNeta >= v.objetivo;
+                  const diferenciaMeta = v.facturacionNeta - v.objetivo;
+                  const seleccionado = vendedorDetalleKey === v.key;
+
+                  return (
+                    <div
+                      key={v.key}
+                      onClick={() => setVendedorDetalleKey(seleccionado ? null : v.key)}
+                      role="button"
+                      tabIndex={0}
+                      onKeyDown={(e) => e.key === 'Enter' && setVendedorDetalleKey(seleccionado ? null : v.key)}
+                      className={`cursor-pointer rounded-2xl border-2 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${
+                        seleccionado ? 'border-[#b91c1c] ring-2 ring-red-200' : 'border-gray-200'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-extrabold text-red-700">
+                          {v.camioneta}
+                        </span>
+                        {v.objetivo === 0 ? (
+                          <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-bold text-gray-600">
+                            Día Libre
+                          </span>
+                        ) : cumplioMeta ? (
+                          <span className="rounded-full border border-emerald-300 bg-emerald-50 px-2.5 py-1 text-[11px] font-extrabold text-emerald-700">
+                            ✓ Cumplió Meta
+                          </span>
+                        ) : (
+                          <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-[11px] font-extrabold text-amber-800">
+                            ⏳ En Curso
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="mt-3">
+                        <h3 className="text-lg font-extrabold text-gray-900">{v.nombre}</h3>
+                        <p className="text-xs font-medium text-gray-500">{v.rutaTexto}</p>
+                      </div>
+
+                      <div className="mt-4 rounded-xl bg-[#faf7f0] p-3">
+                        <div className="flex items-center justify-between text-xs font-bold text-gray-700">
+                          <span>Cumplimiento de Ruta</span>
+                          <span>
+                            {v.comerciosUnicos} / {v.totalOps} ops ({v.pctRuta}%)
+                          </span>
+                        </div>
+                        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                          <div
+                            className="h-full rounded-full bg-blue-600 transition-all"
+                            style={{ width: `${Math.min(v.pctRuta, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <div className="mt-4 flex items-baseline justify-between">
+                        <span className="text-xs font-bold text-gray-600">Facturación Neta</span>
+                        <span className="text-2xl font-black text-gray-900">
+                          {formatearPesos(v.facturacionNeta)}
+                        </span>
+                      </div>
+
+                      {v.objetivo > 0 ? (
+                        <>
+                          <div className="mt-2 flex items-center justify-between text-xs">
+                            <span className="text-gray-500">
+                              Objetivo día: {formatearPesos(v.objetivo)}
+                            </span>
+                            <span className="font-extrabold text-red-700">{v.pctObjetivo}%</span>
+                          </div>
+                          <div className="mt-1.5 h-2 w-full overflow-hidden rounded-full bg-gray-200">
+                            <div
+                              className={`h-full rounded-full transition-all ${
+                                cumplioMeta ? 'bg-emerald-600' : 'bg-red-600'
+                              }`}
+                              style={{ width: `${Math.min(v.pctObjetivo, 100)}%` }}
+                            />
+                          </div>
+                          <div
+                            className={`mt-3 rounded-xl border px-3 py-2 text-xs font-bold ${
+                              cumplioMeta
+                                ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                                : 'border-amber-200 bg-amber-50 text-amber-900'
+                            }`}
+                          >
+                            {cumplioMeta
+                              ? `🎯 ¡Objetivo cumplido! Superó por +${formatearPesos(diferenciaMeta)}`
+                              : `📊 Le faltan ${formatearPesos(Math.abs(diferenciaMeta))} para cumplir el objetivo`}
+                          </div>
+                        </>
+                      ) : (
+                        <div className="mt-4 rounded-xl border border-gray-200 bg-gray-50 px-3 py-2.5 text-center text-xs text-gray-500">
+                          Sin objetivo fijo para esta jornada.
+                        </div>
+                      )}
+
+                      <div className="mt-3 flex items-center justify-between border-t border-gray-100 pt-2.5 text-[11px] font-bold text-red-700">
+                        <span>Cobrado: {formatearPesos(v.totalCobrado)}</span>
+                        <span>{seleccionado ? '▲ Ocultar planilla' : '📋 Ver planilla Excel →'}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </section>
+            )}
+
+            {/* PLANILLA DETALLADA ESTILO EXCEL CON BOTÓN DE DESCARGA .XLSX */}
+            {vendedorActivo && (
+              <section className="overflow-hidden rounded-2xl border-2 border-[#1b1710] bg-white shadow-lg">
+                <div className="flex flex-wrap items-center justify-between gap-3 bg-[#1b1710] px-6 py-4 text-white">
+                  <div>
+                    <p className="text-[11px] font-extrabold uppercase tracking-wider text-[#f5b82e]">
+                      PLANILLA DETALLADA DEL REPARTO • {formatearFechaLarga(fechaSeleccionada)}
+                    </p>
+                    <h3 className="text-lg font-extrabold">
+                      {vendedorActivo.nombre} — {vendedorActivo.rutaTexto}
+                    </h3>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-3 text-xs">
+                    <div className="rounded-lg bg-white/10 px-3 py-1.5">
+                      Operaciones: <strong>{vendedorActivo.totalOps}</strong>
+                    </div>
+                    <div className="rounded-lg bg-white/10 px-3 py-1.5">
+                      Vendido: <strong className="text-[#f5b82e]">{formatearPesos(vendedorActivo.facturacionNeta)}</strong>
+                    </div>
+                    <div className="rounded-lg bg-white/10 px-3 py-1.5">
+                      Cobrado: <strong className="text-emerald-400">{formatearPesos(vendedorActivo.totalCobrado)}</strong>
+                    </div>
+                    <div className="rounded-lg bg-white/10 px-3 py-1.5">
+                      Saldo: <strong className="text-amber-300">{formatearPesos(vendedorActivo.saldoPendiente)}</strong>
+                    </div>
+
+                    <button
+                      type="button"
+                      disabled={vendedorActivo.ops.length === 0}
+                      onClick={handleExportarPlanillaVendedor}
+                      className="rounded-lg bg-emerald-600 px-3.5 py-1.5 font-extrabold text-white shadow transition hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      ⬇ Exportar Planilla (.xlsx)
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setVendedorDetalleKey(null)}
+                      className="rounded-lg bg-red-600 px-3 py-1.5 font-extrabold text-white hover:bg-red-700"
+                    >
+                      ✕ Cerrar
+                    </button>
+                  </div>
+                </div>
+
+                {vendedorActivo.ops.length === 0 ? (
+                  <div className="p-8 text-center text-sm font-semibold text-gray-500">
+                    No hay ventas registradas para {vendedorActivo.nombre} en esta fecha.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full border-collapse text-left text-xs">
+                      <thead>
+                        <tr className="border-b-2 border-gray-300 bg-[#faf7f0] font-extrabold uppercase text-gray-700">
+                          <th className="sticky left-0 z-10 bg-[#faf7f0] px-3 py-3">#</th>
+                          <th className="px-3 py-3">Zona</th>
+                          <th className="px-3 py-3">Ruta</th>
+                          <th className="sticky left-8 z-10 min-w-[220px] bg-[#faf7f0] px-3 py-3">
+                            Cliente
+                          </th>
+                          <th className="bg-amber-50 px-3 py-3 text-right text-gray-900">Total Venta</th>
+                          <th className="bg-emerald-50 px-3 py-3 text-right text-emerald-900">Cobrado</th>
+                          <th className="bg-red-50 px-3 py-3 text-right text-red-900">Saldo</th>
+                          {columnasActivasExcel.map((col) => (
+                            <th
+                              key={col.key}
+                              className="border-l border-gray-200 px-2.5 py-3 text-center whitespace-nowrap"
+                              title={col.key}
+                            >
+                              {col.label}
+                            </th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200">
+                        {vendedorActivo.ops.map((op, idx) => {
+                          const det = op.detalle_productos || {};
+                          return (
+                            <tr key={op.id || idx} className="hover:bg-amber-50/40">
+                              <td className="sticky left-0 bg-white px-3 py-2.5 font-bold text-gray-400">
+                                {idx + 1}
+                              </td>
+                              <td className="px-3 py-2.5 whitespace-nowrap text-gray-600">{op.zona || '-'}</td>
+                              <td className="px-3 py-2.5 whitespace-nowrap font-semibold text-gray-600">
+                                {op.ruta || '-'}
+                              </td>
+                              <td className="sticky left-8 bg-white px-3 py-2.5 font-bold text-gray-900 whitespace-nowrap">
+                                {op.cliente_nombre}
+                              </td>
+                              <td className="bg-amber-50/50 px-3 py-2.5 text-right font-extrabold text-gray-900 whitespace-nowrap">
+                                {formatearPesos(op.monto)}
+                              </td>
+                              <td className="bg-emerald-50/40 px-3 py-2.5 text-right font-bold text-emerald-800 whitespace-nowrap">
+                                {formatearPesos(op.cobrado)}
+                              </td>
+                              <td
+                                className={`bg-red-50/40 px-3 py-2.5 text-right font-bold whitespace-nowrap ${
+                                  Number(op.saldo) > 0 ? 'text-red-700' : 'text-gray-400'
+                                }`}
+                              >
+                                {formatearPesos(op.saldo)}
+                              </td>
+                              {columnasActivasExcel.map((col) => {
+                                const cant = Number(det[col.key] || 0);
+                                return (
+                                  <td
+                                    key={col.key}
+                                    className={`border-l border-gray-100 px-2.5 py-2.5 text-center ${
+                                      cant > 0 ? 'font-extrabold text-gray-900' : 'text-gray-300'
+                                    }`}
+                                  >
+                                    {cant !== 0 ? cant : '-'}
+                                  </td>
+                                );
+                              })}
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                      <tfoot>
+                        <tr className="border-t-2 border-gray-400 bg-[#1b1710] font-extrabold text-white">
+                          <td colSpan={4} className="px-3 py-3 text-right uppercase text-[#f5b82e]">
+                            TOTALES DEL REPARTO ({vendedorActivo.totalOps} operaciones)
+                          </td>
+                          <td className="px-3 py-3 text-right text-[#f5b82e] whitespace-nowrap">
+                            {formatearPesos(vendedorActivo.facturacionNeta)}
+                          </td>
+                          <td className="px-3 py-3 text-right text-emerald-400 whitespace-nowrap">
+                            {formatearPesos(vendedorActivo.totalCobrado)}
+                          </td>
+                          <td className="px-3 py-3 text-right text-amber-300 whitespace-nowrap">
+                            {formatearPesos(vendedorActivo.saldoPendiente)}
+                          </td>
+                          {columnasActivasExcel.map((col) => {
+                            const sumaProd = vendedorActivo.ops.reduce(
+                              (acc, op) => acc + (Number((op.detalle_productos || {})[col.key]) || 0),
+                              0
+                            );
+                            return (
+                              <td
+                                key={col.key}
+                                className="border-l border-gray-700 px-2.5 py-3 text-center text-[#f5b82e]"
+                              >
+                                {sumaProd !== 0 ? sumaProd : 0}
+                              </td>
+                            );
+                          })}
+                        </tr>
+                      </tfoot>
+                    </table>
+                  </div>
+                )}
+              </section>
+            )}
+          </main>
+
+          {/* Modal Importador Excel */}
+          <ImportadorVentasModal
+            isOpen={modalImportadorAbierto}
+            onClose={() => setModalImportadorAbierto(false)}
+            supabaseClient={supabaseClient}
+            onImportSuccess={handleImportSuccess}
+          />
+
+          {/* Modal Configuración de Supabase */}
+          <ConfigSupabaseModal
+            isOpen={modalConfigAbierto}
+            onClose={() => setModalConfigAbierto(false)}
+            urlActual={supaUrl}
+            keyActual={supaKey}
+            onGuardar={(u, k) => {
+              setSupaUrl(u);
+              setSupaKey(k);
+            }}
+          />
+        </div>
+      );
     }
 
-    /**
-     * ACTUALIZACIÓN DE LA INTERFAZ
-     */
-    function renderizarResultados(res) {
-      document.getElementById('lblLoteHeader').textContent =
-        `Lote Importado: ${res.archivosCount} ${res.archivosCount === 1 ? 'archivo Excel' : 'archivos Excel'}`;
-
-      document.getElementById('lblTotalOps').textContent = res.totalOps;
-      document.getElementById('lblTotalMonto').textContent = formatearPesos(res.totalMonto);
-      document.getElementById('lblClientesAltas').textContent = `+${res.comerciosIdentificados}`;
-      document.getElementById('lblOtrasVentas').textContent = res.otrasVentasCount;
-
-      document.getElementById('lblVendA').textContent =
-        `${res.porVendedor.A.ops} ops • ${formatearPesos(res.porVendedor.A.monto)}`;
-      document.getElementById('lblVendB').textContent =
-        `${res.porVendedor.B.ops} ops • ${formatearPesos(res.porVendedor.B.monto)}`;
-      document.getElementById('lblVendC').textContent =
-        `${res.porVendedor.C.ops} ops • ${formatearPesos(res.porVendedor.C.monto)}`;
-
-      const filesListEl = document.getElementById('filesList');
-      filesListEl.innerHTML = '';
-
-      for (const arch of res.archivosDetalle) {
-        const row = document.createElement('div');
-        row.className = 'file-row';
-        row.innerHTML = `
-          <div class="file-row-left">📅 ${arch.fechaEtiqueta} (${arch.nombre})</div>
-          <div class="file-row-right">${arch.ops} ops • ${formatearPesos(arch.monto)}</div>
-        `;
-        filesListEl.appendChild(row);
-      }
-
-      document.getElementById('resultBox').classList.add('visible');
-      document.getElementById('btnVerMatriz').disabled = false;
-    }
-
-    // Eventos UI (Click y Drag & Drop)
-    const dropzone = document.getElementById('dropzone');
-    const inputExcel = document.getElementById('inputExcel');
-
-    dropzone.addEventListener('click', () => inputExcel.click());
-
-    inputExcel.addEventListener('change', (e) => {
-      if (e.target.files.length) procesarArchivos(e.target.files);
-    });
-
-    dropzone.addEventListener('dragover', (e) => {
-      e.preventDefault();
-      dropzone.classList.add('dragover');
-    });
-
-    dropzone.addEventListener('dragleave', () => {
-      dropzone.classList.remove('dragover');
-    });
-
-    dropzone.addEventListener('drop', (e) => {
-      e.preventDefault();
-      dropzone.classList.remove('dragover');
-      if (e.dataTransfer.files.length) procesarArchivos(e.dataTransfer.files);
-    });
-
-    document.getElementById('btnVerMatriz').addEventListener('click', () => {
-      window.dispatchEvent(new CustomEvent('buendia:abrir-matriz', { detail: window.ultimoLoteImportado }));
-    });
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
   </script>
 </body>
 </html>
