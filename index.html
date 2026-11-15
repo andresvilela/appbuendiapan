@@ -908,6 +908,18 @@
                 }
               }
 
+              // Limpiar importaciones previas de esta misma fecha y repartidor para evitar duplicados al re-subir el archivo
+              const fechaCabeceraIso = parsearFechaExcel((matriz[2] || [])[2], fIsoArchivo);
+              Object.values(nuevoEstado).forEach((listaC) => {
+                listaC.forEach((c) => {
+                  if (c.historialPrevio && c.historialPrevio.length > 0) {
+                    c.historialPrevio = c.historialPrevio.filter(
+                      (h) => !(h.fecha === fechaCabeceraIso && h.repartidor === vendedorSheet && String(h.numeroComprobante || '').startsWith('IMP-'))
+                    );
+                  }
+                });
+              });
+
               for (let r = 2; r < Math.min(matriz.length, 46); r++) {
                 const fila = matriz[r] || [];
                 const zonaTxt = normalizarTxt(fila[0]);
@@ -1153,51 +1165,65 @@
           const vObj = PLANIFICACION_VENDEDORES[vId];
           const ag = vObj.agenda[diaActivo] || { rutaId: null, nombre: 'Sin Ruta', objetivo: 0 };
           const rId = ag.rutaId;
-          const lista = rId ? (rutasData[rId] || []).filter((c) => !c.esOtrasVentas) : [];
-          let visitados = 0, ventaBruta = 0, totalCambiosMonto = 0, totalCambiosUnidades = 0;
+          const listaRuta = rId ? (rutasData[rId] || []).filter((c) => !c.esOtrasVentas) : [];
+          let visitados = 0, facturacionNeta = 0, totalCambiosMonto = 0, totalCambiosUnidades = 0;
           let totalTransferencias = 0, totalCtaCte = 0, totalPromosUnidades = 0, totalPromosMonto = 0;
+          const rutasDetectadasVend = new Set();
 
-          lista.forEach((cli) => {
-            const opsDelDia = [];
-            (cli.historialPrevio || []).forEach((h) => {
-              if (h.fecha === fechaObjetivoIso) opsDelDia.push(h);
-            });
-            if (cli.estado === 'Visitado' && cli.ultimaOperacion) {
-              const fOp = cli.ultimaOperacion.fecha || infoHoyReal?.iso;
-              if (fOp === fechaObjetivoIso) opsDelDia.push(cli.ultimaOperacion);
-            }
+          // Recorrer TODAS las rutas para sumar exactamente todo lo vendido por este repartidor en esa fecha (incluyendo OTRAS VENTAS)
+          Object.entries(rutasData).forEach(([rutaKey, clientesDeRuta]) => {
+            clientesDeRuta.forEach((cli) => {
+              const opsDelDia = [];
+              (cli.historialPrevio || []).forEach((h) => {
+                if (h.fecha === fechaObjetivoIso) {
+                  const repOp = h.repartidor || (rutaKey === rId ? vId : null);
+                  if (repOp === vId) opsDelDia.push(h);
+                }
+              });
+              if (cli.estado === 'Visitado' && cli.ultimaOperacion) {
+                const fOp = cli.ultimaOperacion.fecha || infoHoyReal?.iso;
+                const repOp = cli.ultimaOperacion.repartidor || (rutaKey === rId ? vId : null);
+                if (fOp === fechaObjetivoIso && repOp === vId) opsDelDia.push(cli.ultimaOperacion);
+              }
 
-            if (opsDelDia.length > 0 || (esJornadaDeHoy && cli.estado === 'Sin Compra')) {
-              visitados += 1;
-            }
+              if (!cli.esOtrasVentas && (opsDelDia.length > 0 || (esJornadaDeHoy && rutaKey === rId && cli.estado === 'Sin Compra'))) {
+                visitados += 1;
+              }
 
-            opsDelDia.forEach((op) => {
-              ventaBruta += op.totalVenta || 0;
-              totalCambiosMonto += op.totalCambio || 0;
-              if (op.metodoPago === 'Transferencia') totalTransferencias += op.neto || 0;
-              if (op.metodoPago === 'Cuenta Corriente') totalCtaCte += op.neto || 0;
-              Object.values(op.itemsCambiados || {}).forEach((q) => { totalCambiosUnidades += q || 0; });
-              Object.entries(op.itemsPromocion || {}).forEach(([pid, q]) => {
-                const p = CATALOGO_PRODUCTOS.find((x) => x.id === pid);
-                totalPromosUnidades += q || 0;
-                totalPromosMonto += (p ? p.precio : 0) * (q || 0);
+              opsDelDia.forEach((op) => {
+                rutasDetectadasVend.add(rutaKey);
+                const netoOp = op.neto !== undefined ? op.neto : ((op.totalVenta || 0) - (op.totalCambio || 0));
+                facturacionNeta += netoOp;
+                totalCambiosMonto += op.totalCambio || 0;
+                if (op.metodoPago === 'Transferencia') totalTransferencias += netoOp;
+                if (op.metodoPago === 'Cuenta Corriente') totalCtaCte += (op.saldo !== undefined && op.saldo > 0 ? op.saldo : netoOp);
+                Object.values(op.itemsCambiados || {}).forEach((q) => { totalCambiosUnidades += q || 0; });
+                Object.entries(op.itemsPromocion || {}).forEach(([pid, q]) => {
+                  const p = CATALOGO_PRODUCTOS.find((x) => x.id === pid);
+                  totalPromosUnidades += q || 0;
+                  totalPromosMonto += (p ? p.precio : 0) * (q || 0);
+                });
               });
             });
           });
 
-          const facturacionNeta = ventaBruta - totalCambiosMonto;
+          const totalClientes = Math.max(listaRuta.length, visitados);
           const objetivo = ag.objetivo || 0;
-          const cumplimientoRutaPct = lista.length > 0 ? Math.round((visitados / lista.length) * 100) : 0;
+          const cumplimientoRutaPct = totalClientes > 0 ? Math.round((visitados / totalClientes) * 100) : 0;
           const cumplimientoObjPct = objetivo > 0 ? Math.round((facturacionNeta / objetivo) * 100) : 0;
+          const rutaMostrarId = rutasDetectadasVend.size > 0 ? Array.from(rutasDetectadasVend).join(' / ') : rId;
+          const rutaMostrarNombre = rutasDetectadasVend.size > 0
+            ? Array.from(rutasDetectadasVend).map((rk) => NOMBRES_RUTAS[rk] || rk).join(' • ')
+            : ag.nombre;
 
           return {
             vendedorId: vId,
             nombre: vObj.nombre,
             vehiculo: vObj.vehiculo,
             zonaMacro: vObj.zonaMacro,
-            rutaId: rId,
-            nombreRuta: ag.nombre,
-            totalClientes: lista.length,
+            rutaId: rutaMostrarId,
+            nombreRuta: rutaMostrarNombre,
+            totalClientes,
             visitados,
             cumplimientoRutaPct,
             facturacionNeta,
